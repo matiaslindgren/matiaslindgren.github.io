@@ -1,0 +1,43 @@
+<!DOCTYPE HTML>
+<html>
+    <head>
+        <meta charset="utf-8">
+        <link href="main.css" rel="stylesheet">
+        <title>CUDA memory access</title>
+    </head>
+    <body>
+        <div hidden id="body-error-banner" class="body-error-banner"></div>
+        <noscript>
+        <div class="body-error-banner">JavaScript is not enabled, unable to run animation</div>
+        </noscript>
+        <div class="menubar">
+            <input id="restart-button" type="button" value="Restart"/>
+            <input id="pause-button" type="button" value="Pause"/>
+            <select id="kernel-select"></select>
+            <select id="sm-count-select"></select>
+            <select id="cache-size-select"></select>
+            <select id="latency-select"></select>
+            <select id="highlight-select"></select>
+            <select id="memory-slot-size-select"></select>
+        </div>
+        <div id="memoryCanvasContainer" class="column canvas-container">
+            <h3><pre>Global device memory (DRAM)</pre></h3>
+            <pre hidden id="memoryMessages" class="kernel-message"></pre>
+            <canvas id="memoryCanvasInput"></canvas>
+        </div>
+        <div id="SMCanvasContainer" class="column canvas-container">
+            <h3><pre>Streaming multiprocessors (SM)</pre></h3>
+            <pre hidden id="SMMessages" class="kernel-message"></pre>
+            <ul id="sm-list" class="sm-list">
+            </ul>
+            <div id="kernelSourceCanvasContainer" class="canvas-container">
+                <h3><pre>CUDA kernel</pre></h3>
+                <pre hidden id="sourceMessages" class="kernel-message"></pre>
+                <pre id="kernelSource"></pre>
+                <canvas id="kernelCanvas"></canvas>
+            </div>
+        </div>
+        <script src="main.min.js"></script>
+    </body>
+</html>
+
