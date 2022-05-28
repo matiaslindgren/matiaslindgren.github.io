@@ -1,0 +1,4541 @@
+<!DOCTYPE HTML>
+<html lang="en">
+
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Global warming
+</title>
+
+      <script src="https://cdn.jsdelivr.net/npm/vega@5" crossorigin="anonymous">
+      </script>
+      <script src="https://cdn.jsdelivr.net/npm/vega-lite@4" crossorigin="anonymous">
+      </script>
+      <script src="https://cdn.jsdelivr.net/npm/vega-embed@6" crossorigin="anonymous">
+      </script>
+
+
+
+    <style>
+body {
+  font-family: Georgia, serif;
+  padding: 1rem;
+}
+
+a {
+  text-decoration: none;
+}
+
+a:hover {
+  text-decoration: underline;
+}
+
+#vega-container {
+  max-width: 70em;
+  width: 100%;
+}
+
+form.vega-bindings .vega-bind label {
+  display: grid;
+  grid-template-columns: 6em 14em 6em;
+}
+
+form.vega-bindings .vega-bind label span {
+  margin-left: 0.5em;
+}
+
+dl {
+  padding-top: 1rem;
+  padding-bottom: 1rem;
+  max-width: 800px;
+}
+
+dl,
+dd {
+  font-size: 0.9rem;
+}
+
+dt {
+  font-weight: bold;
+}
+
+dd {
+  margin-bottom: 1rem;
+}
+
+ul.data-source-url-list {
+  padding: 0;
+  list-style: none;
+}
+
+table {
+  border-collapse: collapse;
+  width: 100%;
+  max-width: 800px;
+}
+
+table td {
+  vertical-align: baseline;
+}
+
+table tr {
+  border-bottom: 1px solid lightgray;
+}
+
+table.tooltip {
+  border-collapse: initial;
+  width: initial;
+  max-width: initial;
+}
+
+table.tooltip tbody tr td {
+  vertical-align: middle;
+}
+
+#custom-tooltip-element.visible {
+  visibility: visible;
+}
+
+#custom-tooltip-element {
+  visibility: hidden;
+  padding: 0.5rem;
+  position: fixed;
+  z-index: 1000;
+  font-size: 0.8rem;
+  border-radius: 3px;
+  box-shadow: 2px 2px 4px rgba(0, 0, 0, 0.1);
+  background-color: rgba(255, 255, 255, 0.95);
+  border: 1px solid #d9d9d9;
+  color: black;
+}
+
+dd.module-description ul {
+  padding-left: 0px;
+  list-style-position: inside;
+}    </style>
+
+
+  </head>
+
+  <body>
+    <a href="index.html">go back</a>
+    <h1>Global warming
+</h1>
+    <dl>
+      <dt>Updated at</dt>
+      <dd>29. May 2022</dd>
+        <dt>Description</dt>
+        <dd class="module-description">
+              <ul>
+                <li>Northern hemisphere temperatures over the long run, deviation from 1951-1990 mean temperature (°C), 1000 to 2017.
+</li>
+                <li>Units of measurement: Deviation from 1961-1990 mean temperature in degree celsius for years before 1880. Deviation from 1951-1980 mean temperature in degree celsius for years after 1880.
+</li>
+              </ul>
+        </dd>
+        <dt>Data source</dt>
+        <dd>GISTEMP Team, 2018: GISS Surface Temperature Analysis (<a href="https://data.giss.nasa.gov/gistemp">GISTEMP</a>). NASA Goddard Institute for Space Studies. Dataset accessed 2018-11-25
+</dd>
+        <dt>Data downloaded from</dt>
+        <dd>
+          <a href="https://ourworldindata.org/grapher/northern-hemisphere-temperatures-over-the-long-run-deviation-from-1951-1990-mean-temperature-c
+">Our World in Data</a>
+        </dd>
+        <dt>Book chapter</dt>
+        <dd><a href="https://core-econ.org/the-economy/book/text/01.html#15-the-economy-and-the-environment
+">1.5 The economy and the environment
+</a></dd>
+    </dl>
+
+
+      <div id="vega-container"></div>
+      <script type="text/javascript">
+function renderTooltip(event, value, config) {
+  const tooltipContainer = document.getElementById("custom-tooltip-element");
+  tooltipContainer.classList.add("visible");
+  if (!value) {
+    tooltipContainer.classList.remove("visible");
+    return;
+  }
+  tooltipContainer.setAttribute(
+    "style",
+    `top: ${event.clientY + 15}px; left: ${event.clientX + 15}px`
+  );
+  const colorScheme = vega.scheme(findScheme(spec));
+  let { datatype, title, ...values } = value;
+  values = Array.from(Object.keys(values), (key, i) => ({
+    key: key,
+    val: values[key],
+    color: colorScheme[i],
+  }));
+  values.sort((a, b) => parseFloat(b.val) - parseFloat(a.val));
+  const fmt = getFormatter(config.formatter[datatype]);
+  tooltipContainer.innerHTML = sortedTable(title, values, fmt).outerHTML;
+}
+
+function getFormatter({ name, digits }) {
+  const currency = (c) =>
+    Intl.NumberFormat("en-US", {
+      maximumSignificantDigits: digits,
+      style: "currency",
+      currency: c,
+    });
+  const unit = (u) =>
+    Intl.NumberFormat("en-US", { maximumSignificantDigits: digits, style: "unit", unit: u });
+  switch (name) {
+    case "hour":
+      return unit("hour");
+    case "USD":
+    default:
+      return currency("USD");
+  }
+}
+
+function svgCircle(color) {
+  return [
+    `<svg style="display: table-cell; height: 1em; width: 1em; fill: ${color};" viewBox="0 0 2 2" xmlns="http://www.w3.org/2000/svg">`,
+    `<circle cx="1.1" cy="1.1" r="0.8"/>`,
+    `</svg>`,
+  ].join("\n");
+}
+
+const element = (tag) => document.createElement(tag);
+
+function findScheme(spec) {
+  for (const layer of spec.hconcat || spec.vconcat || spec.layer) {
+    const scheme =
+      layer &&
+      layer.encoding &&
+      layer.encoding.color &&
+      layer.encoding.color.scale &&
+      layer.encoding.color.scale.scheme;
+    if (scheme) {
+      return scheme;
+    }
+  }
+  return "tableau10";
+}
+
+function sortedTable(title, values, fmt) {
+  const container = element("div");
+  const header = element("h4");
+  header.setAttribute("style", "margin: 0 auto 0.5em;");
+  header.innerText = title;
+  container.appendChild(header);
+  const tbody = element("tbody");
+  for (let row of values) {
+    const tr = element("tr");
+    tr.innerHTML = [
+      `<td>${svgCircle(row.color)}</td>`,
+      `<td>${row.key}</td>`,
+      `<td>${fmt.format(row.val)}</td>`,
+    ].join("\n");
+    tbody.appendChild(tr);
+  }
+  const table = element("table");
+  table.classList.add("tooltip");
+  table.appendChild(tbody);
+  container.appendChild(table);
+  return container;
+}
+
+let vegaView;
+
+function buildChart(spec, options) {
+  vegaEmbed("#vega-container", spec, options)
+    .then((result) => {
+      vegaView = result.view;
+      const meta = spec.usermeta;
+      if (!meta) {
+        return;
+      }
+      if (meta.inputsOnTop) {
+        const bindings = document.querySelector("#vega-container.vega-embed form.vega-bindings");
+        const canvas = document.querySelector("#vega-container.vega-embed canvas");
+        canvas.parentNode.insertBefore(bindings, canvas);
+      }
+      if (meta.customTooltip) {
+        result.view.tooltip((handler, event, item, value) =>
+          renderTooltip(event, value, meta.customTooltip)
+        );
+      }
+      return result.view.runAsync();
+    })
+    .catch(console.error);
+}        const spec = {
+  "$schema": "https://vega.github.io/schema/vega-lite/v4.17.0.json",
+  "config": {
+    "axis": {
+      "labelFont": "Georgia",
+      "labelFontSize": 14,
+      "titleFont": "Georgia",
+      "titleFontSize": 16
+    },
+    "header": {
+      "labelFont": "Georgia",
+      "labelFontSize": 14,
+      "titleFont": "Georgia",
+      "titleFontSize": 16
+    },
+    "legend": {
+      "labelFont": "Georgia",
+      "labelFontSize": 14,
+      "titleFont": "Georgia",
+      "titleFontSize": 16
+    },
+    "title": {
+      "font": "Georgia",
+      "fontSize": 16
+    },
+    "view": {
+      "continuousHeight": 300,
+      "continuousWidth": 400
+    }
+  },
+  "data": {
+    "name": "data-d10cb70e9d3c10ec6eb073dc05ec6de9"
+  },
+  "datasets": {
+    "data-c71ae55ec06ce368f69a3c6de60dcb03": [
+      {
+        "Deviation": 0.0
+      }
+    ],
+    "data-d10cb70e9d3c10ec6eb073dc05ec6de9": [
+      {
+        "Deviation": 0.0030465,
+        "Year": 1000
+      },
+      {
+        "Deviation": -0.006229,
+        "Year": 1001
+      },
+      {
+        "Deviation": -0.014937,
+        "Year": 1002
+      },
+      {
+        "Deviation": -0.022072,
+        "Year": 1003
+      },
+      {
+        "Deviation": -0.027126,
+        "Year": 1004
+      },
+      {
+        "Deviation": -0.030245,
+        "Year": 1005
+      },
+      {
+        "Deviation": -0.032083,
+        "Year": 1006
+      },
+      {
+        "Deviation": -0.03342,
+        "Year": 1007
+      },
+      {
+        "Deviation": -0.034744,
+        "Year": 1008
+      },
+      {
+        "Deviation": -0.035978,
+        "Year": 1009
+      },
+      {
+        "Deviation": -0.036503,
+        "Year": 1010
+      },
+      {
+        "Deviation": -0.035484,
+        "Year": 1011
+      },
+      {
+        "Deviation": -0.032357,
+        "Year": 1012
+      },
+      {
+        "Deviation": -0.027283,
+        "Year": 1013
+      },
+      {
+        "Deviation": -0.021349,
+        "Year": 1014
+      },
+      {
+        "Deviation": -0.016398,
+        "Year": 1015
+      },
+      {
+        "Deviation": -0.014509,
+        "Year": 1016
+      },
+      {
+        "Deviation": -0.017293,
+        "Year": 1017
+      },
+      {
+        "Deviation": -0.025239,
+        "Year": 1018
+      },
+      {
+        "Deviation": -0.03736,
+        "Year": 1019
+      },
+      {
+        "Deviation": -0.051282,
+        "Year": 1020
+      },
+      {
+        "Deviation": -0.063798,
+        "Year": 1021
+      },
+      {
+        "Deviation": -0.071728,
+        "Year": 1022
+      },
+      {
+        "Deviation": -0.07284,
+        "Year": 1023
+      },
+      {
+        "Deviation": -0.066562,
+        "Year": 1024
+      },
+      {
+        "Deviation": -0.054256,
+        "Year": 1025
+      },
+      {
+        "Deviation": -0.03897,
+        "Year": 1026
+      },
+      {
+        "Deviation": -0.024713,
+        "Year": 1027
+      },
+      {
+        "Deviation": -0.015467,
+        "Year": 1028
+      },
+      {
+        "Deviation": -0.014181,
+        "Year": 1029
+      },
+      {
+        "Deviation": -0.022022,
+        "Year": 1030
+      },
+      {
+        "Deviation": -0.038077,
+        "Year": 1031
+      },
+      {
+        "Deviation": -0.059563,
+        "Year": 1032
+      },
+      {
+        "Deviation": -0.082483,
+        "Year": 1033
+      },
+      {
+        "Deviation": -0.10254,
+        "Year": 1034
+      },
+      {
+        "Deviation": -0.11609,
+        "Year": 1035
+      },
+      {
+        "Deviation": -0.12087,
+        "Year": 1036
+      },
+      {
+        "Deviation": -0.11638,
+        "Year": 1037
+      },
+      {
+        "Deviation": -0.10385,
+        "Year": 1038
+      },
+      {
+        "Deviation": -0.085764,
+        "Year": 1039
+      },
+      {
+        "Deviation": -0.065213,
+        "Year": 1040
+      },
+      {
+        "Deviation": -0.045119,
+        "Year": 1041
+      },
+      {
+        "Deviation": -0.027619,
+        "Year": 1042
+      },
+      {
+        "Deviation": -0.013703,
+        "Year": 1043
+      },
+      {
+        "Deviation": -0.0031992,
+        "Year": 1044
+      },
+      {
+        "Deviation": 0.0049089,
+        "Year": 1045
+      },
+      {
+        "Deviation": 0.011943,
+        "Year": 1046
+      },
+      {
+        "Deviation": 0.018922,
+        "Year": 1047
+      },
+      {
+        "Deviation": 0.026086,
+        "Year": 1048
+      },
+      {
+        "Deviation": 0.032694,
+        "Year": 1049
+      },
+      {
+        "Deviation": 0.037207,
+        "Year": 1050
+      },
+      {
+        "Deviation": 0.037801,
+        "Year": 1051
+      },
+      {
+        "Deviation": 0.033084,
+        "Year": 1052
+      },
+      {
+        "Deviation": 0.022783,
+        "Year": 1053
+      },
+      {
+        "Deviation": 0.0081403,
+        "Year": 1054
+      },
+      {
+        "Deviation": -0.0081582,
+        "Year": 1055
+      },
+      {
+        "Deviation": -0.022582,
+        "Year": 1056
+      },
+      {
+        "Deviation": -0.031744,
+        "Year": 1057
+      },
+      {
+        "Deviation": -0.033505,
+        "Year": 1058
+      },
+      {
+        "Deviation": -0.02781,
+        "Year": 1059
+      },
+      {
+        "Deviation": -0.01696,
+        "Year": 1060
+      },
+      {
+        "Deviation": -0.005138,
+        "Year": 1061
+      },
+      {
+        "Deviation": 0.0027109,
+        "Year": 1062
+      },
+      {
+        "Deviation": 0.0023532,
+        "Year": 1063
+      },
+      {
+        "Deviation": -0.0083771,
+        "Year": 1064
+      },
+      {
+        "Deviation": -0.028785,
+        "Year": 1065
+      },
+      {
+        "Deviation": -0.055374,
+        "Year": 1066
+      },
+      {
+        "Deviation": -0.082772,
+        "Year": 1067
+      },
+      {
+        "Deviation": -0.10525,
+        "Year": 1068
+      },
+      {
+        "Deviation": -0.11834,
+        "Year": 1069
+      },
+      {
+        "Deviation": -0.12008,
+        "Year": 1070
+      },
+      {
+        "Deviation": -0.11146,
+        "Year": 1071
+      },
+      {
+        "Deviation": -0.095944,
+        "Year": 1072
+      },
+      {
+        "Deviation": -0.078338,
+        "Year": 1073
+      },
+      {
+        "Deviation": -0.063312,
+        "Year": 1074
+      },
+      {
+        "Deviation": -0.054131,
+        "Year": 1075
+      },
+      {
+        "Deviation": -0.051933,
+        "Year": 1076
+      },
+      {
+        "Deviation": -0.055754,
+        "Year": 1077
+      },
+      {
+        "Deviation": -0.06317,
+        "Year": 1078
+      },
+      {
+        "Deviation": -0.071296,
+        "Year": 1079
+      },
+      {
+        "Deviation": -0.077746,
+        "Year": 1080
+      },
+      {
+        "Deviation": -0.081243,
+        "Year": 1081
+      },
+      {
+        "Deviation": -0.081739,
+        "Year": 1082
+      },
+      {
+        "Deviation": -0.080092,
+        "Year": 1083
+      },
+      {
+        "Deviation": -0.077499,
+        "Year": 1084
+      },
+      {
+        "Deviation": -0.074961,
+        "Year": 1085
+      },
+      {
+        "Deviation": -0.072997,
+        "Year": 1086
+      },
+      {
+        "Deviation": -0.071695,
+        "Year": 1087
+      },
+      {
+        "Deviation": -0.071037,
+        "Year": 1088
+      },
+      {
+        "Deviation": -0.07131,
+        "Year": 1089
+      },
+      {
+        "Deviation": -0.073384,
+        "Year": 1090
+      },
+      {
+        "Deviation": -0.078694,
+        "Year": 1091
+      },
+      {
+        "Deviation": -0.088878,
+        "Year": 1092
+      },
+      {
+        "Deviation": -0.10519,
+        "Year": 1093
+      },
+      {
+        "Deviation": -0.1279,
+        "Year": 1094
+      },
+      {
+        "Deviation": -0.15591,
+        "Year": 1095
+      },
+      {
+        "Deviation": -0.18681,
+        "Year": 1096
+      },
+      {
+        "Deviation": -0.21735,
+        "Year": 1097
+      },
+      {
+        "Deviation": -0.24426,
+        "Year": 1098
+      },
+      {
+        "Deviation": -0.26515,
+        "Year": 1099
+      },
+      {
+        "Deviation": -0.27921,
+        "Year": 1100
+      },
+      {
+        "Deviation": -0.28749,
+        "Year": 1101
+      },
+      {
+        "Deviation": -0.29256,
+        "Year": 1102
+      },
+      {
+        "Deviation": -0.29773,
+        "Year": 1103
+      },
+      {
+        "Deviation": -0.30606,
+        "Year": 1104
+      },
+      {
+        "Deviation": -0.31932,
+        "Year": 1105
+      },
+      {
+        "Deviation": -0.33743,
+        "Year": 1106
+      },
+      {
+        "Deviation": -0.35838,
+        "Year": 1107
+      },
+      {
+        "Deviation": -0.37871,
+        "Year": 1108
+      },
+      {
+        "Deviation": -0.3945,
+        "Year": 1109
+      },
+      {
+        "Deviation": -0.40242,
+        "Year": 1110
+      },
+      {
+        "Deviation": -0.40065,
+        "Year": 1111
+      },
+      {
+        "Deviation": -0.38942,
+        "Year": 1112
+      },
+      {
+        "Deviation": -0.37095,
+        "Year": 1113
+      },
+      {
+        "Deviation": -0.3489,
+        "Year": 1114
+      },
+      {
+        "Deviation": -0.32747,
+        "Year": 1115
+      },
+      {
+        "Deviation": -0.3104,
+        "Year": 1116
+      },
+      {
+        "Deviation": -0.30013,
+        "Year": 1117
+      },
+      {
+        "Deviation": -0.29727,
+        "Year": 1118
+      },
+      {
+        "Deviation": -0.30059,
+        "Year": 1119
+      },
+      {
+        "Deviation": -0.30737,
+        "Year": 1120
+      },
+      {
+        "Deviation": -0.31408,
+        "Year": 1121
+      },
+      {
+        "Deviation": -0.31721,
+        "Year": 1122
+      },
+      {
+        "Deviation": -0.31407,
+        "Year": 1123
+      },
+      {
+        "Deviation": -0.30335,
+        "Year": 1124
+      },
+      {
+        "Deviation": -0.28539,
+        "Year": 1125
+      },
+      {
+        "Deviation": -0.26212,
+        "Year": 1126
+      },
+      {
+        "Deviation": -0.23665,
+        "Year": 1127
+      },
+      {
+        "Deviation": -0.2126,
+        "Year": 1128
+      },
+      {
+        "Deviation": -0.19339,
+        "Year": 1129
+      },
+      {
+        "Deviation": -0.18154,
+        "Year": 1130
+      },
+      {
+        "Deviation": -0.17819,
+        "Year": 1131
+      },
+      {
+        "Deviation": -0.18289,
+        "Year": 1132
+      },
+      {
+        "Deviation": -0.19372,
+        "Year": 1133
+      },
+      {
+        "Deviation": -0.20785,
+        "Year": 1134
+      },
+      {
+        "Deviation": -0.2221,
+        "Year": 1135
+      },
+      {
+        "Deviation": -0.23378,
+        "Year": 1136
+      },
+      {
+        "Deviation": -0.24126,
+        "Year": 1137
+      },
+      {
+        "Deviation": -0.24433,
+        "Year": 1138
+      },
+      {
+        "Deviation": -0.24423,
+        "Year": 1139
+      },
+      {
+        "Deviation": -0.24328,
+        "Year": 1140
+      },
+      {
+        "Deviation": -0.24421,
+        "Year": 1141
+      },
+      {
+        "Deviation": -0.24943,
+        "Year": 1142
+      },
+      {
+        "Deviation": -0.26038,
+        "Year": 1143
+      },
+      {
+        "Deviation": -0.2771,
+        "Year": 1144
+      },
+      {
+        "Deviation": -0.29825,
+        "Year": 1145
+      },
+      {
+        "Deviation": -0.32137,
+        "Year": 1146
+      },
+      {
+        "Deviation": -0.34355,
+        "Year": 1147
+      },
+      {
+        "Deviation": -0.36206,
+        "Year": 1148
+      },
+      {
+        "Deviation": -0.37493,
+        "Year": 1149
+      },
+      {
+        "Deviation": -0.38128,
+        "Year": 1150
+      },
+      {
+        "Deviation": -0.38133,
+        "Year": 1151
+      },
+      {
+        "Deviation": -0.37618,
+        "Year": 1152
+      },
+      {
+        "Deviation": -0.36739,
+        "Year": 1153
+      },
+      {
+        "Deviation": -0.35665,
+        "Year": 1154
+      },
+      {
+        "Deviation": -0.34544,
+        "Year": 1155
+      },
+      {
+        "Deviation": -0.33495,
+        "Year": 1156
+      },
+      {
+        "Deviation": -0.326,
+        "Year": 1157
+      },
+      {
+        "Deviation": -0.31912,
+        "Year": 1158
+      },
+      {
+        "Deviation": -0.31457,
+        "Year": 1159
+      },
+      {
+        "Deviation": -0.31233,
+        "Year": 1160
+      },
+      {
+        "Deviation": -0.31203,
+        "Year": 1161
+      },
+      {
+        "Deviation": -0.3129,
+        "Year": 1162
+      },
+      {
+        "Deviation": -0.31378,
+        "Year": 1163
+      },
+      {
+        "Deviation": -0.31325,
+        "Year": 1164
+      },
+      {
+        "Deviation": -0.30988,
+        "Year": 1165
+      },
+      {
+        "Deviation": -0.30255,
+        "Year": 1166
+      },
+      {
+        "Deviation": -0.2907,
+        "Year": 1167
+      },
+      {
+        "Deviation": -0.27455,
+        "Year": 1168
+      },
+      {
+        "Deviation": -0.25504,
+        "Year": 1169
+      },
+      {
+        "Deviation": -0.23372,
+        "Year": 1170
+      },
+      {
+        "Deviation": -0.21238,
+        "Year": 1171
+      },
+      {
+        "Deviation": -0.19279,
+        "Year": 1172
+      },
+      {
+        "Deviation": -0.1764,
+        "Year": 1173
+      },
+      {
+        "Deviation": -0.16424,
+        "Year": 1174
+      },
+      {
+        "Deviation": -0.15687,
+        "Year": 1175
+      },
+      {
+        "Deviation": -0.15456,
+        "Year": 1176
+      },
+      {
+        "Deviation": -0.1574,
+        "Year": 1177
+      },
+      {
+        "Deviation": -0.16541,
+        "Year": 1178
+      },
+      {
+        "Deviation": -0.17856,
+        "Year": 1179
+      },
+      {
+        "Deviation": -0.19659,
+        "Year": 1180
+      },
+      {
+        "Deviation": -0.21889,
+        "Year": 1181
+      },
+      {
+        "Deviation": -0.24424,
+        "Year": 1182
+      },
+      {
+        "Deviation": -0.27086,
+        "Year": 1183
+      },
+      {
+        "Deviation": -0.29644,
+        "Year": 1184
+      },
+      {
+        "Deviation": -0.3186,
+        "Year": 1185
+      },
+      {
+        "Deviation": -0.33527,
+        "Year": 1186
+      },
+      {
+        "Deviation": -0.34516,
+        "Year": 1187
+      },
+      {
+        "Deviation": -0.34806,
+        "Year": 1188
+      },
+      {
+        "Deviation": -0.34483,
+        "Year": 1189
+      },
+      {
+        "Deviation": -0.33706,
+        "Year": 1190
+      },
+      {
+        "Deviation": -0.32656,
+        "Year": 1191
+      },
+      {
+        "Deviation": -0.31479,
+        "Year": 1192
+      },
+      {
+        "Deviation": -0.30241,
+        "Year": 1193
+      },
+      {
+        "Deviation": -0.28921,
+        "Year": 1194
+      },
+      {
+        "Deviation": -0.27436,
+        "Year": 1195
+      },
+      {
+        "Deviation": -0.25705,
+        "Year": 1196
+      },
+      {
+        "Deviation": -0.23709,
+        "Year": 1197
+      },
+      {
+        "Deviation": -0.21537,
+        "Year": 1198
+      },
+      {
+        "Deviation": -0.19399,
+        "Year": 1199
+      },
+      {
+        "Deviation": -0.1758,
+        "Year": 1200
+      },
+      {
+        "Deviation": -0.1637,
+        "Year": 1201
+      },
+      {
+        "Deviation": -0.15974,
+        "Year": 1202
+      },
+      {
+        "Deviation": -0.16439,
+        "Year": 1203
+      },
+      {
+        "Deviation": -0.1763,
+        "Year": 1204
+      },
+      {
+        "Deviation": -0.19261,
+        "Year": 1205
+      },
+      {
+        "Deviation": -0.20973,
+        "Year": 1206
+      },
+      {
+        "Deviation": -0.22431,
+        "Year": 1207
+      },
+      {
+        "Deviation": -0.23417,
+        "Year": 1208
+      },
+      {
+        "Deviation": -0.23871,
+        "Year": 1209
+      },
+      {
+        "Deviation": -0.23889,
+        "Year": 1210
+      },
+      {
+        "Deviation": -0.23656,
+        "Year": 1211
+      },
+      {
+        "Deviation": -0.23365,
+        "Year": 1212
+      },
+      {
+        "Deviation": -0.23137,
+        "Year": 1213
+      },
+      {
+        "Deviation": -0.22977,
+        "Year": 1214
+      },
+      {
+        "Deviation": -0.22778,
+        "Year": 1215
+      },
+      {
+        "Deviation": -0.22373,
+        "Year": 1216
+      },
+      {
+        "Deviation": -0.21605,
+        "Year": 1217
+      },
+      {
+        "Deviation": -0.20399,
+        "Year": 1218
+      },
+      {
+        "Deviation": -0.18795,
+        "Year": 1219
+      },
+      {
+        "Deviation": -0.16945,
+        "Year": 1220
+      },
+      {
+        "Deviation": -0.15066,
+        "Year": 1221
+      },
+      {
+        "Deviation": -0.13381,
+        "Year": 1222
+      },
+      {
+        "Deviation": -0.12062,
+        "Year": 1223
+      },
+      {
+        "Deviation": -0.11197,
+        "Year": 1224
+      },
+      {
+        "Deviation": -0.10792,
+        "Year": 1225
+      },
+      {
+        "Deviation": -0.10797,
+        "Year": 1226
+      },
+      {
+        "Deviation": -0.11141,
+        "Year": 1227
+      },
+      {
+        "Deviation": -0.11757,
+        "Year": 1228
+      },
+      {
+        "Deviation": -0.12586,
+        "Year": 1229
+      },
+      {
+        "Deviation": -0.13567,
+        "Year": 1230
+      },
+      {
+        "Deviation": -0.14612,
+        "Year": 1231
+      },
+      {
+        "Deviation": -0.15599,
+        "Year": 1232
+      },
+      {
+        "Deviation": -0.16377,
+        "Year": 1233
+      },
+      {
+        "Deviation": -0.16807,
+        "Year": 1234
+      },
+      {
+        "Deviation": -0.16811,
+        "Year": 1235
+      },
+      {
+        "Deviation": -0.16417,
+        "Year": 1236
+      },
+      {
+        "Deviation": -0.15775,
+        "Year": 1237
+      },
+      {
+        "Deviation": -0.15134,
+        "Year": 1238
+      },
+      {
+        "Deviation": -0.14775,
+        "Year": 1239
+      },
+      {
+        "Deviation": -0.14922,
+        "Year": 1240
+      },
+      {
+        "Deviation": -0.15671,
+        "Year": 1241
+      },
+      {
+        "Deviation": -0.16939,
+        "Year": 1242
+      },
+      {
+        "Deviation": -0.18487,
+        "Year": 1243
+      },
+      {
+        "Deviation": -0.19985,
+        "Year": 1244
+      },
+      {
+        "Deviation": -0.21117,
+        "Year": 1245
+      },
+      {
+        "Deviation": -0.21684,
+        "Year": 1246
+      },
+      {
+        "Deviation": -0.21664,
+        "Year": 1247
+      },
+      {
+        "Deviation": -0.21222,
+        "Year": 1248
+      },
+      {
+        "Deviation": -0.20638,
+        "Year": 1249
+      },
+      {
+        "Deviation": -0.20213,
+        "Year": 1250
+      },
+      {
+        "Deviation": -0.20151,
+        "Year": 1251
+      },
+      {
+        "Deviation": -0.20487,
+        "Year": 1252
+      },
+      {
+        "Deviation": -0.21068,
+        "Year": 1253
+      },
+      {
+        "Deviation": -0.21607,
+        "Year": 1254
+      },
+      {
+        "Deviation": -0.21783,
+        "Year": 1255
+      },
+      {
+        "Deviation": -0.21358,
+        "Year": 1256
+      },
+      {
+        "Deviation": -0.20264,
+        "Year": 1257
+      },
+      {
+        "Deviation": -0.18642,
+        "Year": 1258
+      },
+      {
+        "Deviation": -0.16804,
+        "Year": 1259
+      },
+      {
+        "Deviation": -0.15145,
+        "Year": 1260
+      },
+      {
+        "Deviation": -0.14037,
+        "Year": 1261
+      },
+      {
+        "Deviation": -0.13726,
+        "Year": 1262
+      },
+      {
+        "Deviation": -0.14285,
+        "Year": 1263
+      },
+      {
+        "Deviation": -0.15613,
+        "Year": 1264
+      },
+      {
+        "Deviation": -0.17497,
+        "Year": 1265
+      },
+      {
+        "Deviation": -0.1968,
+        "Year": 1266
+      },
+      {
+        "Deviation": -0.21943,
+        "Year": 1267
+      },
+      {
+        "Deviation": -0.24138,
+        "Year": 1268
+      },
+      {
+        "Deviation": -0.26191,
+        "Year": 1269
+      },
+      {
+        "Deviation": -0.28065,
+        "Year": 1270
+      },
+      {
+        "Deviation": -0.29716,
+        "Year": 1271
+      },
+      {
+        "Deviation": -0.31059,
+        "Year": 1272
+      },
+      {
+        "Deviation": -0.31965,
+        "Year": 1273
+      },
+      {
+        "Deviation": -0.32298,
+        "Year": 1274
+      },
+      {
+        "Deviation": -0.3197,
+        "Year": 1275
+      },
+      {
+        "Deviation": -0.31009,
+        "Year": 1276
+      },
+      {
+        "Deviation": -0.29581,
+        "Year": 1277
+      },
+      {
+        "Deviation": -0.27984,
+        "Year": 1278
+      },
+      {
+        "Deviation": -0.26579,
+        "Year": 1279
+      },
+      {
+        "Deviation": -0.25699,
+        "Year": 1280
+      },
+      {
+        "Deviation": -0.25549,
+        "Year": 1281
+      },
+      {
+        "Deviation": -0.26138,
+        "Year": 1282
+      },
+      {
+        "Deviation": -0.27278,
+        "Year": 1283
+      },
+      {
+        "Deviation": -0.28634,
+        "Year": 1284
+      },
+      {
+        "Deviation": -0.2984,
+        "Year": 1285
+      },
+      {
+        "Deviation": -0.30616,
+        "Year": 1286
+      },
+      {
+        "Deviation": -0.30862,
+        "Year": 1287
+      },
+      {
+        "Deviation": -0.30697,
+        "Year": 1288
+      },
+      {
+        "Deviation": -0.30407,
+        "Year": 1289
+      },
+      {
+        "Deviation": -0.30336,
+        "Year": 1290
+      },
+      {
+        "Deviation": -0.30753,
+        "Year": 1291
+      },
+      {
+        "Deviation": -0.31725,
+        "Year": 1292
+      },
+      {
+        "Deviation": -0.3307,
+        "Year": 1293
+      },
+      {
+        "Deviation": -0.34386,
+        "Year": 1294
+      },
+      {
+        "Deviation": -0.35174,
+        "Year": 1295
+      },
+      {
+        "Deviation": -0.35001,
+        "Year": 1296
+      },
+      {
+        "Deviation": -0.3366,
+        "Year": 1297
+      },
+      {
+        "Deviation": -0.31267,
+        "Year": 1298
+      },
+      {
+        "Deviation": -0.28263,
+        "Year": 1299
+      },
+      {
+        "Deviation": -0.25305,
+        "Year": 1300
+      },
+      {
+        "Deviation": -0.23082,
+        "Year": 1301
+      },
+      {
+        "Deviation": -0.22111,
+        "Year": 1302
+      },
+      {
+        "Deviation": -0.22574,
+        "Year": 1303
+      },
+      {
+        "Deviation": -0.2425,
+        "Year": 1304
+      },
+      {
+        "Deviation": -0.26576,
+        "Year": 1305
+      },
+      {
+        "Deviation": -0.28807,
+        "Year": 1306
+      },
+      {
+        "Deviation": -0.3024,
+        "Year": 1307
+      },
+      {
+        "Deviation": -0.30433,
+        "Year": 1308
+      },
+      {
+        "Deviation": -0.29339,
+        "Year": 1309
+      },
+      {
+        "Deviation": -0.27318,
+        "Year": 1310
+      },
+      {
+        "Deviation": -0.25033,
+        "Year": 1311
+      },
+      {
+        "Deviation": -0.23233,
+        "Year": 1312
+      },
+      {
+        "Deviation": -0.22521,
+        "Year": 1313
+      },
+      {
+        "Deviation": -0.2316,
+        "Year": 1314
+      },
+      {
+        "Deviation": -0.24976,
+        "Year": 1315
+      },
+      {
+        "Deviation": -0.27401,
+        "Year": 1316
+      },
+      {
+        "Deviation": -0.29623,
+        "Year": 1317
+      },
+      {
+        "Deviation": -0.30813,
+        "Year": 1318
+      },
+      {
+        "Deviation": -0.3035,
+        "Year": 1319
+      },
+      {
+        "Deviation": -0.27982,
+        "Year": 1320
+      },
+      {
+        "Deviation": -0.2389,
+        "Year": 1321
+      },
+      {
+        "Deviation": -0.18633,
+        "Year": 1322
+      },
+      {
+        "Deviation": -0.13,
+        "Year": 1323
+      },
+      {
+        "Deviation": -0.078293,
+        "Year": 1324
+      },
+      {
+        "Deviation": -0.038267,
+        "Year": 1325
+      },
+      {
+        "Deviation": -0.014533,
+        "Year": 1326
+      },
+      {
+        "Deviation": -0.0088594,
+        "Year": 1327
+      },
+      {
+        "Deviation": -0.020549,
+        "Year": 1328
+      },
+      {
+        "Deviation": -0.047302,
+        "Year": 1329
+      },
+      {
+        "Deviation": -0.086179,
+        "Year": 1330
+      },
+      {
+        "Deviation": -0.13432,
+        "Year": 1331
+      },
+      {
+        "Deviation": -0.18922,
+        "Year": 1332
+      },
+      {
+        "Deviation": -0.24858,
+        "Year": 1333
+      },
+      {
+        "Deviation": -0.30985,
+        "Year": 1334
+      },
+      {
+        "Deviation": -0.36992,
+        "Year": 1335
+      },
+      {
+        "Deviation": -0.42497,
+        "Year": 1336
+      },
+      {
+        "Deviation": -0.4709,
+        "Year": 1337
+      },
+      {
+        "Deviation": -0.50402,
+        "Year": 1338
+      },
+      {
+        "Deviation": -0.52207,
+        "Year": 1339
+      },
+      {
+        "Deviation": -0.52501,
+        "Year": 1340
+      },
+      {
+        "Deviation": -0.51533,
+        "Year": 1341
+      },
+      {
+        "Deviation": -0.49782,
+        "Year": 1342
+      },
+      {
+        "Deviation": -0.47858,
+        "Year": 1343
+      },
+      {
+        "Deviation": -0.46357,
+        "Year": 1344
+      },
+      {
+        "Deviation": -0.45721,
+        "Year": 1345
+      },
+      {
+        "Deviation": -0.46116,
+        "Year": 1346
+      },
+      {
+        "Deviation": -0.47398,
+        "Year": 1347
+      },
+      {
+        "Deviation": -0.49152,
+        "Year": 1348
+      },
+      {
+        "Deviation": -0.5081,
+        "Year": 1349
+      },
+      {
+        "Deviation": -0.5181,
+        "Year": 1350
+      },
+      {
+        "Deviation": -0.51744,
+        "Year": 1351
+      },
+      {
+        "Deviation": -0.50451,
+        "Year": 1352
+      },
+      {
+        "Deviation": -0.48042,
+        "Year": 1353
+      },
+      {
+        "Deviation": -0.44825,
+        "Year": 1354
+      },
+      {
+        "Deviation": -0.41194,
+        "Year": 1355
+      },
+      {
+        "Deviation": -0.37501,
+        "Year": 1356
+      },
+      {
+        "Deviation": -0.33957,
+        "Year": 1357
+      },
+      {
+        "Deviation": -0.30613,
+        "Year": 1358
+      },
+      {
+        "Deviation": -0.27396,
+        "Year": 1359
+      },
+      {
+        "Deviation": -0.24202,
+        "Year": 1360
+      },
+      {
+        "Deviation": -0.20995,
+        "Year": 1361
+      },
+      {
+        "Deviation": -0.17864,
+        "Year": 1362
+      },
+      {
+        "Deviation": -0.15028,
+        "Year": 1363
+      },
+      {
+        "Deviation": -0.12767,
+        "Year": 1364
+      },
+      {
+        "Deviation": -0.11313,
+        "Year": 1365
+      },
+      {
+        "Deviation": -0.10747,
+        "Year": 1366
+      },
+      {
+        "Deviation": -0.10932,
+        "Year": 1367
+      },
+      {
+        "Deviation": -0.11528,
+        "Year": 1368
+      },
+      {
+        "Deviation": -0.12077,
+        "Year": 1369
+      },
+      {
+        "Deviation": -0.12145,
+        "Year": 1370
+      },
+      {
+        "Deviation": -0.11459,
+        "Year": 1371
+      },
+      {
+        "Deviation": -0.10009,
+        "Year": 1372
+      },
+      {
+        "Deviation": -0.080572,
+        "Year": 1373
+      },
+      {
+        "Deviation": -0.060631,
+        "Year": 1374
+      },
+      {
+        "Deviation": -0.045416,
+        "Year": 1375
+      },
+      {
+        "Deviation": -0.038945,
+        "Year": 1376
+      },
+      {
+        "Deviation": -0.042773,
+        "Year": 1377
+      },
+      {
+        "Deviation": -0.055418,
+        "Year": 1378
+      },
+      {
+        "Deviation": -0.072773,
+        "Year": 1379
+      },
+      {
+        "Deviation": -0.08936,
+        "Year": 1380
+      },
+      {
+        "Deviation": -0.10006,
+        "Year": 1381
+      },
+      {
+        "Deviation": -0.10173,
+        "Year": 1382
+      },
+      {
+        "Deviation": -0.094262,
+        "Year": 1383
+      },
+      {
+        "Deviation": -0.080641,
+        "Year": 1384
+      },
+      {
+        "Deviation": -0.066111,
+        "Year": 1385
+      },
+      {
+        "Deviation": -0.056633,
+        "Year": 1386
+      },
+      {
+        "Deviation": -0.057166,
+        "Year": 1387
+      },
+      {
+        "Deviation": -0.070276,
+        "Year": 1388
+      },
+      {
+        "Deviation": -0.095491,
+        "Year": 1389
+      },
+      {
+        "Deviation": -0.12954,
+        "Year": 1390
+      },
+      {
+        "Deviation": -0.16734,
+        "Year": 1391
+      },
+      {
+        "Deviation": -0.20339,
+        "Year": 1392
+      },
+      {
+        "Deviation": -0.23307,
+        "Year": 1393
+      },
+      {
+        "Deviation": -0.2536,
+        "Year": 1394
+      },
+      {
+        "Deviation": -0.26429,
+        "Year": 1395
+      },
+      {
+        "Deviation": -0.26619,
+        "Year": 1396
+      },
+      {
+        "Deviation": -0.26135,
+        "Year": 1397
+      },
+      {
+        "Deviation": -0.252,
+        "Year": 1398
+      },
+      {
+        "Deviation": -0.23982,
+        "Year": 1399
+      },
+      {
+        "Deviation": -0.22569,
+        "Year": 1400
+      },
+      {
+        "Deviation": -0.20975,
+        "Year": 1401
+      },
+      {
+        "Deviation": -0.19175,
+        "Year": 1402
+      },
+      {
+        "Deviation": -0.17155,
+        "Year": 1403
+      },
+      {
+        "Deviation": -0.14948,
+        "Year": 1404
+      },
+      {
+        "Deviation": -0.12649,
+        "Year": 1405
+      },
+      {
+        "Deviation": -0.10409,
+        "Year": 1406
+      },
+      {
+        "Deviation": -0.084034,
+        "Year": 1407
+      },
+      {
+        "Deviation": -0.067917,
+        "Year": 1408
+      },
+      {
+        "Deviation": -0.05685,
+        "Year": 1409
+      },
+      {
+        "Deviation": -0.051231,
+        "Year": 1410
+      },
+      {
+        "Deviation": -0.050731,
+        "Year": 1411
+      },
+      {
+        "Deviation": -0.054455,
+        "Year": 1412
+      },
+      {
+        "Deviation": -0.061218,
+        "Year": 1413
+      },
+      {
+        "Deviation": -0.069845,
+        "Year": 1414
+      },
+      {
+        "Deviation": -0.079404,
+        "Year": 1415
+      },
+      {
+        "Deviation": -0.089298,
+        "Year": 1416
+      },
+      {
+        "Deviation": -0.099219,
+        "Year": 1417
+      },
+      {
+        "Deviation": -0.10898,
+        "Year": 1418
+      },
+      {
+        "Deviation": -0.11832,
+        "Year": 1419
+      },
+      {
+        "Deviation": -0.12676,
+        "Year": 1420
+      },
+      {
+        "Deviation": -0.13357,
+        "Year": 1421
+      },
+      {
+        "Deviation": -0.13793,
+        "Year": 1422
+      },
+      {
+        "Deviation": -0.13917,
+        "Year": 1423
+      },
+      {
+        "Deviation": -0.13708,
+        "Year": 1424
+      },
+      {
+        "Deviation": -0.13225,
+        "Year": 1425
+      },
+      {
+        "Deviation": -0.1261,
+        "Year": 1426
+      },
+      {
+        "Deviation": -0.12082,
+        "Year": 1427
+      },
+      {
+        "Deviation": -0.11895,
+        "Year": 1428
+      },
+      {
+        "Deviation": -0.12282,
+        "Year": 1429
+      },
+      {
+        "Deviation": -0.13391,
+        "Year": 1430
+      },
+      {
+        "Deviation": -0.15231,
+        "Year": 1431
+      },
+      {
+        "Deviation": -0.17653,
+        "Year": 1432
+      },
+      {
+        "Deviation": -0.20362,
+        "Year": 1433
+      },
+      {
+        "Deviation": -0.22974,
+        "Year": 1434
+      },
+      {
+        "Deviation": -0.25105,
+        "Year": 1435
+      },
+      {
+        "Deviation": -0.26461,
+        "Year": 1436
+      },
+      {
+        "Deviation": -0.26916,
+        "Year": 1437
+      },
+      {
+        "Deviation": -0.2655,
+        "Year": 1438
+      },
+      {
+        "Deviation": -0.25635,
+        "Year": 1439
+      },
+      {
+        "Deviation": -0.24574,
+        "Year": 1440
+      },
+      {
+        "Deviation": -0.23807,
+        "Year": 1441
+      },
+      {
+        "Deviation": -0.23704,
+        "Year": 1442
+      },
+      {
+        "Deviation": -0.2449,
+        "Year": 1443
+      },
+      {
+        "Deviation": -0.26199,
+        "Year": 1444
+      },
+      {
+        "Deviation": -0.28693,
+        "Year": 1445
+      },
+      {
+        "Deviation": -0.31714,
+        "Year": 1446
+      },
+      {
+        "Deviation": -0.34966,
+        "Year": 1447
+      },
+      {
+        "Deviation": -0.38201,
+        "Year": 1448
+      },
+      {
+        "Deviation": -0.41272,
+        "Year": 1449
+      },
+      {
+        "Deviation": -0.44149,
+        "Year": 1450
+      },
+      {
+        "Deviation": -0.46894,
+        "Year": 1451
+      },
+      {
+        "Deviation": -0.49596,
+        "Year": 1452
+      },
+      {
+        "Deviation": -0.52305,
+        "Year": 1453
+      },
+      {
+        "Deviation": -0.54969,
+        "Year": 1454
+      },
+      {
+        "Deviation": -0.57419,
+        "Year": 1455
+      },
+      {
+        "Deviation": -0.59382,
+        "Year": 1456
+      },
+      {
+        "Deviation": -0.60547,
+        "Year": 1457
+      },
+      {
+        "Deviation": -0.60647,
+        "Year": 1458
+      },
+      {
+        "Deviation": -0.59545,
+        "Year": 1459
+      },
+      {
+        "Deviation": -0.57297,
+        "Year": 1460
+      },
+      {
+        "Deviation": -0.54174,
+        "Year": 1461
+      },
+      {
+        "Deviation": -0.50632,
+        "Year": 1462
+      },
+      {
+        "Deviation": -0.47238,
+        "Year": 1463
+      },
+      {
+        "Deviation": -0.44563,
+        "Year": 1464
+      },
+      {
+        "Deviation": -0.43071,
+        "Year": 1465
+      },
+      {
+        "Deviation": -0.43017,
+        "Year": 1466
+      },
+      {
+        "Deviation": -0.44392,
+        "Year": 1467
+      },
+      {
+        "Deviation": -0.4691,
+        "Year": 1468
+      },
+      {
+        "Deviation": -0.50068,
+        "Year": 1469
+      },
+      {
+        "Deviation": -0.53233,
+        "Year": 1470
+      },
+      {
+        "Deviation": -0.55783,
+        "Year": 1471
+      },
+      {
+        "Deviation": -0.57229,
+        "Year": 1472
+      },
+      {
+        "Deviation": -0.57325,
+        "Year": 1473
+      },
+      {
+        "Deviation": -0.56115,
+        "Year": 1474
+      },
+      {
+        "Deviation": -0.53923,
+        "Year": 1475
+      },
+      {
+        "Deviation": -0.51266,
+        "Year": 1476
+      },
+      {
+        "Deviation": -0.48729,
+        "Year": 1477
+      },
+      {
+        "Deviation": -0.46818,
+        "Year": 1478
+      },
+      {
+        "Deviation": -0.4584,
+        "Year": 1479
+      },
+      {
+        "Deviation": -0.45832,
+        "Year": 1480
+      },
+      {
+        "Deviation": -0.4657,
+        "Year": 1481
+      },
+      {
+        "Deviation": -0.47641,
+        "Year": 1482
+      },
+      {
+        "Deviation": -0.48558,
+        "Year": 1483
+      },
+      {
+        "Deviation": -0.48901,
+        "Year": 1484
+      },
+      {
+        "Deviation": -0.48417,
+        "Year": 1485
+      },
+      {
+        "Deviation": -0.47077,
+        "Year": 1486
+      },
+      {
+        "Deviation": -0.45065,
+        "Year": 1487
+      },
+      {
+        "Deviation": -0.42709,
+        "Year": 1488
+      },
+      {
+        "Deviation": -0.40383,
+        "Year": 1489
+      },
+      {
+        "Deviation": -0.38404,
+        "Year": 1490
+      },
+      {
+        "Deviation": -0.36955,
+        "Year": 1491
+      },
+      {
+        "Deviation": -0.36056,
+        "Year": 1492
+      },
+      {
+        "Deviation": -0.35578,
+        "Year": 1493
+      },
+      {
+        "Deviation": -0.35301,
+        "Year": 1494
+      },
+      {
+        "Deviation": -0.34986,
+        "Year": 1495
+      },
+      {
+        "Deviation": -0.34444,
+        "Year": 1496
+      },
+      {
+        "Deviation": -0.33581,
+        "Year": 1497
+      },
+      {
+        "Deviation": -0.3241,
+        "Year": 1498
+      },
+      {
+        "Deviation": -0.31036,
+        "Year": 1499
+      },
+      {
+        "Deviation": -0.29617,
+        "Year": 1500
+      },
+      {
+        "Deviation": -0.28321,
+        "Year": 1501
+      },
+      {
+        "Deviation": -0.27292,
+        "Year": 1502
+      },
+      {
+        "Deviation": -0.2663,
+        "Year": 1503
+      },
+      {
+        "Deviation": -0.26386,
+        "Year": 1504
+      },
+      {
+        "Deviation": -0.26575,
+        "Year": 1505
+      },
+      {
+        "Deviation": -0.27186,
+        "Year": 1506
+      },
+      {
+        "Deviation": -0.2819,
+        "Year": 1507
+      },
+      {
+        "Deviation": -0.29549,
+        "Year": 1508
+      },
+      {
+        "Deviation": -0.31208,
+        "Year": 1509
+      },
+      {
+        "Deviation": -0.33097,
+        "Year": 1510
+      },
+      {
+        "Deviation": -0.35136,
+        "Year": 1511
+      },
+      {
+        "Deviation": -0.37244,
+        "Year": 1512
+      },
+      {
+        "Deviation": -0.39356,
+        "Year": 1513
+      },
+      {
+        "Deviation": -0.41425,
+        "Year": 1514
+      },
+      {
+        "Deviation": -0.43429,
+        "Year": 1515
+      },
+      {
+        "Deviation": -0.45346,
+        "Year": 1516
+      },
+      {
+        "Deviation": -0.47131,
+        "Year": 1517
+      },
+      {
+        "Deviation": -0.48697,
+        "Year": 1518
+      },
+      {
+        "Deviation": -0.49912,
+        "Year": 1519
+      },
+      {
+        "Deviation": -0.50623,
+        "Year": 1520
+      },
+      {
+        "Deviation": -0.50712,
+        "Year": 1521
+      },
+      {
+        "Deviation": -0.50153,
+        "Year": 1522
+      },
+      {
+        "Deviation": -0.49061,
+        "Year": 1523
+      },
+      {
+        "Deviation": -0.47693,
+        "Year": 1524
+      },
+      {
+        "Deviation": -0.464,
+        "Year": 1525
+      },
+      {
+        "Deviation": -0.45538,
+        "Year": 1526
+      },
+      {
+        "Deviation": -0.45344,
+        "Year": 1527
+      },
+      {
+        "Deviation": -0.4585,
+        "Year": 1528
+      },
+      {
+        "Deviation": -0.46842,
+        "Year": 1529
+      },
+      {
+        "Deviation": -0.47908,
+        "Year": 1530
+      },
+      {
+        "Deviation": -0.48548,
+        "Year": 1531
+      },
+      {
+        "Deviation": -0.48334,
+        "Year": 1532
+      },
+      {
+        "Deviation": -0.47055,
+        "Year": 1533
+      },
+      {
+        "Deviation": -0.44809,
+        "Year": 1534
+      },
+      {
+        "Deviation": -0.41991,
+        "Year": 1535
+      },
+      {
+        "Deviation": -0.39201,
+        "Year": 1536
+      },
+      {
+        "Deviation": -0.37073,
+        "Year": 1537
+      },
+      {
+        "Deviation": -0.36096,
+        "Year": 1538
+      },
+      {
+        "Deviation": -0.36474,
+        "Year": 1539
+      },
+      {
+        "Deviation": -0.3807,
+        "Year": 1540
+      },
+      {
+        "Deviation": -0.40443,
+        "Year": 1541
+      },
+      {
+        "Deviation": -0.42979,
+        "Year": 1542
+      },
+      {
+        "Deviation": -0.45047,
+        "Year": 1543
+      },
+      {
+        "Deviation": -0.46164,
+        "Year": 1544
+      },
+      {
+        "Deviation": -0.46098,
+        "Year": 1545
+      },
+      {
+        "Deviation": -0.44899,
+        "Year": 1546
+      },
+      {
+        "Deviation": -0.42858,
+        "Year": 1547
+      },
+      {
+        "Deviation": -0.40417,
+        "Year": 1548
+      },
+      {
+        "Deviation": -0.38052,
+        "Year": 1549
+      },
+      {
+        "Deviation": -0.36174,
+        "Year": 1550
+      },
+      {
+        "Deviation": -0.35054,
+        "Year": 1551
+      },
+      {
+        "Deviation": -0.34794,
+        "Year": 1552
+      },
+      {
+        "Deviation": -0.35329,
+        "Year": 1553
+      },
+      {
+        "Deviation": -0.36448,
+        "Year": 1554
+      },
+      {
+        "Deviation": -0.37848,
+        "Year": 1555
+      },
+      {
+        "Deviation": -0.3918,
+        "Year": 1556
+      },
+      {
+        "Deviation": -0.40117,
+        "Year": 1557
+      },
+      {
+        "Deviation": -0.40414,
+        "Year": 1558
+      },
+      {
+        "Deviation": -0.39972,
+        "Year": 1559
+      },
+      {
+        "Deviation": -0.38866,
+        "Year": 1560
+      },
+      {
+        "Deviation": -0.37347,
+        "Year": 1561
+      },
+      {
+        "Deviation": -0.35797,
+        "Year": 1562
+      },
+      {
+        "Deviation": -0.34642,
+        "Year": 1563
+      },
+      {
+        "Deviation": -0.34242,
+        "Year": 1564
+      },
+      {
+        "Deviation": -0.3479,
+        "Year": 1565
+      },
+      {
+        "Deviation": -0.36258,
+        "Year": 1566
+      },
+      {
+        "Deviation": -0.38401,
+        "Year": 1567
+      },
+      {
+        "Deviation": -0.40832,
+        "Year": 1568
+      },
+      {
+        "Deviation": -0.43145,
+        "Year": 1569
+      },
+      {
+        "Deviation": -0.45037,
+        "Year": 1570
+      },
+      {
+        "Deviation": -0.464,
+        "Year": 1571
+      },
+      {
+        "Deviation": -0.47341,
+        "Year": 1572
+      },
+      {
+        "Deviation": -0.48117,
+        "Year": 1573
+      },
+      {
+        "Deviation": -0.49018,
+        "Year": 1574
+      },
+      {
+        "Deviation": -0.50236,
+        "Year": 1575
+      },
+      {
+        "Deviation": -0.51759,
+        "Year": 1576
+      },
+      {
+        "Deviation": -0.53353,
+        "Year": 1577
+      },
+      {
+        "Deviation": -0.54618,
+        "Year": 1578
+      },
+      {
+        "Deviation": -0.55127,
+        "Year": 1579
+      },
+      {
+        "Deviation": -0.54581,
+        "Year": 1580
+      },
+      {
+        "Deviation": -0.52933,
+        "Year": 1581
+      },
+      {
+        "Deviation": -0.5044,
+        "Year": 1582
+      },
+      {
+        "Deviation": -0.47607,
+        "Year": 1583
+      },
+      {
+        "Deviation": -0.45052,
+        "Year": 1584
+      },
+      {
+        "Deviation": -0.43325,
+        "Year": 1585
+      },
+      {
+        "Deviation": -0.42736,
+        "Year": 1586
+      },
+      {
+        "Deviation": -0.43266,
+        "Year": 1587
+      },
+      {
+        "Deviation": -0.44567,
+        "Year": 1588
+      },
+      {
+        "Deviation": -0.46079,
+        "Year": 1589
+      },
+      {
+        "Deviation": -0.47204,
+        "Year": 1590
+      },
+      {
+        "Deviation": -0.47496,
+        "Year": 1591
+      },
+      {
+        "Deviation": -0.468,
+        "Year": 1592
+      },
+      {
+        "Deviation": -0.45294,
+        "Year": 1593
+      },
+      {
+        "Deviation": -0.43423,
+        "Year": 1594
+      },
+      {
+        "Deviation": -0.41747,
+        "Year": 1595
+      },
+      {
+        "Deviation": -0.40755,
+        "Year": 1596
+      },
+      {
+        "Deviation": -0.40704,
+        "Year": 1597
+      },
+      {
+        "Deviation": -0.41539,
+        "Year": 1598
+      },
+      {
+        "Deviation": -0.42918,
+        "Year": 1599
+      },
+      {
+        "Deviation": -0.44333,
+        "Year": 1600
+      },
+      {
+        "Deviation": -0.45284,
+        "Year": 1601
+      },
+      {
+        "Deviation": -0.45441,
+        "Year": 1602
+      },
+      {
+        "Deviation": -0.44748,
+        "Year": 1603
+      },
+      {
+        "Deviation": -0.43425,
+        "Year": 1604
+      },
+      {
+        "Deviation": -0.4188,
+        "Year": 1605
+      },
+      {
+        "Deviation": -0.40559,
+        "Year": 1606
+      },
+      {
+        "Deviation": -0.39795,
+        "Year": 1607
+      },
+      {
+        "Deviation": -0.39704,
+        "Year": 1608
+      },
+      {
+        "Deviation": -0.40169,
+        "Year": 1609
+      },
+      {
+        "Deviation": -0.40908,
+        "Year": 1610
+      },
+      {
+        "Deviation": -0.41609,
+        "Year": 1611
+      },
+      {
+        "Deviation": -0.42055,
+        "Year": 1612
+      },
+      {
+        "Deviation": -0.42225,
+        "Year": 1613
+      },
+      {
+        "Deviation": -0.42293,
+        "Year": 1614
+      },
+      {
+        "Deviation": -0.42559,
+        "Year": 1615
+      },
+      {
+        "Deviation": -0.43314,
+        "Year": 1616
+      },
+      {
+        "Deviation": -0.447,
+        "Year": 1617
+      },
+      {
+        "Deviation": -0.46622,
+        "Year": 1618
+      },
+      {
+        "Deviation": -0.48738,
+        "Year": 1619
+      },
+      {
+        "Deviation": -0.50546,
+        "Year": 1620
+      },
+      {
+        "Deviation": -0.51527,
+        "Year": 1621
+      },
+      {
+        "Deviation": -0.51315,
+        "Year": 1622
+      },
+      {
+        "Deviation": -0.49807,
+        "Year": 1623
+      },
+      {
+        "Deviation": -0.47205,
+        "Year": 1624
+      },
+      {
+        "Deviation": -0.4395,
+        "Year": 1625
+      },
+      {
+        "Deviation": -0.40585,
+        "Year": 1626
+      },
+      {
+        "Deviation": -0.37598,
+        "Year": 1627
+      },
+      {
+        "Deviation": -0.35283,
+        "Year": 1628
+      },
+      {
+        "Deviation": -0.33686,
+        "Year": 1629
+      },
+      {
+        "Deviation": -0.32631,
+        "Year": 1630
+      },
+      {
+        "Deviation": -0.31834,
+        "Year": 1631
+      },
+      {
+        "Deviation": -0.31039,
+        "Year": 1632
+      },
+      {
+        "Deviation": -0.30143,
+        "Year": 1633
+      },
+      {
+        "Deviation": -0.29256,
+        "Year": 1634
+      },
+      {
+        "Deviation": -0.28672,
+        "Year": 1635
+      },
+      {
+        "Deviation": -0.28773,
+        "Year": 1636
+      },
+      {
+        "Deviation": -0.29885,
+        "Year": 1637
+      },
+      {
+        "Deviation": -0.32138,
+        "Year": 1638
+      },
+      {
+        "Deviation": -0.35393,
+        "Year": 1639
+      },
+      {
+        "Deviation": -0.39232,
+        "Year": 1640
+      },
+      {
+        "Deviation": -0.43051,
+        "Year": 1641
+      },
+      {
+        "Deviation": -0.46199,
+        "Year": 1642
+      },
+      {
+        "Deviation": -0.48143,
+        "Year": 1643
+      },
+      {
+        "Deviation": -0.48601,
+        "Year": 1644
+      },
+      {
+        "Deviation": -0.47604,
+        "Year": 1645
+      },
+      {
+        "Deviation": -0.45477,
+        "Year": 1646
+      },
+      {
+        "Deviation": -0.42734,
+        "Year": 1647
+      },
+      {
+        "Deviation": -0.39932,
+        "Year": 1648
+      },
+      {
+        "Deviation": -0.37523,
+        "Year": 1649
+      },
+      {
+        "Deviation": -0.35742,
+        "Year": 1650
+      },
+      {
+        "Deviation": -0.34567,
+        "Year": 1651
+      },
+      {
+        "Deviation": -0.33768,
+        "Year": 1652
+      },
+      {
+        "Deviation": -0.33006,
+        "Year": 1653
+      },
+      {
+        "Deviation": -0.3197,
+        "Year": 1654
+      },
+      {
+        "Deviation": -0.3049,
+        "Year": 1655
+      },
+      {
+        "Deviation": -0.28607,
+        "Year": 1656
+      },
+      {
+        "Deviation": -0.26564,
+        "Year": 1657
+      },
+      {
+        "Deviation": -0.24736,
+        "Year": 1658
+      },
+      {
+        "Deviation": -0.23514,
+        "Year": 1659
+      },
+      {
+        "Deviation": -0.23187,
+        "Year": 1660
+      },
+      {
+        "Deviation": -0.2386,
+        "Year": 1661
+      },
+      {
+        "Deviation": -0.25421,
+        "Year": 1662
+      },
+      {
+        "Deviation": -0.2758,
+        "Year": 1663
+      },
+      {
+        "Deviation": -0.29962,
+        "Year": 1664
+      },
+      {
+        "Deviation": -0.32217,
+        "Year": 1665
+      },
+      {
+        "Deviation": -0.34117,
+        "Year": 1666
+      },
+      {
+        "Deviation": -0.35618,
+        "Year": 1667
+      },
+      {
+        "Deviation": -0.36851,
+        "Year": 1668
+      },
+      {
+        "Deviation": -0.38064,
+        "Year": 1669
+      },
+      {
+        "Deviation": -0.39529,
+        "Year": 1670
+      },
+      {
+        "Deviation": -0.41435,
+        "Year": 1671
+      },
+      {
+        "Deviation": -0.43825,
+        "Year": 1672
+      },
+      {
+        "Deviation": -0.46564,
+        "Year": 1673
+      },
+      {
+        "Deviation": -0.49387,
+        "Year": 1674
+      },
+      {
+        "Deviation": -0.5197,
+        "Year": 1675
+      },
+      {
+        "Deviation": -0.54031,
+        "Year": 1676
+      },
+      {
+        "Deviation": -0.55408,
+        "Year": 1677
+      },
+      {
+        "Deviation": -0.56088,
+        "Year": 1678
+      },
+      {
+        "Deviation": -0.56187,
+        "Year": 1679
+      },
+      {
+        "Deviation": -0.55886,
+        "Year": 1680
+      },
+      {
+        "Deviation": -0.55341,
+        "Year": 1681
+      },
+      {
+        "Deviation": -0.54624,
+        "Year": 1682
+      },
+      {
+        "Deviation": -0.53701,
+        "Year": 1683
+      },
+      {
+        "Deviation": -0.52471,
+        "Year": 1684
+      },
+      {
+        "Deviation": -0.50847,
+        "Year": 1685
+      },
+      {
+        "Deviation": -0.48848,
+        "Year": 1686
+      },
+      {
+        "Deviation": -0.46669,
+        "Year": 1687
+      },
+      {
+        "Deviation": -0.44679,
+        "Year": 1688
+      },
+      {
+        "Deviation": -0.43355,
+        "Year": 1689
+      },
+      {
+        "Deviation": -0.43162,
+        "Year": 1690
+      },
+      {
+        "Deviation": -0.44396,
+        "Year": 1691
+      },
+      {
+        "Deviation": -0.47076,
+        "Year": 1692
+      },
+      {
+        "Deviation": -0.50892,
+        "Year": 1693
+      },
+      {
+        "Deviation": -0.55259,
+        "Year": 1694
+      },
+      {
+        "Deviation": -0.59442,
+        "Year": 1695
+      },
+      {
+        "Deviation": -0.6274,
+        "Year": 1696
+      },
+      {
+        "Deviation": -0.64662,
+        "Year": 1697
+      },
+      {
+        "Deviation": -0.65038,
+        "Year": 1698
+      },
+      {
+        "Deviation": -0.64036,
+        "Year": 1699
+      },
+      {
+        "Deviation": -0.62093,
+        "Year": 1700
+      },
+      {
+        "Deviation": -0.59756,
+        "Year": 1701
+      },
+      {
+        "Deviation": -0.57524,
+        "Year": 1702
+      },
+      {
+        "Deviation": -0.55712,
+        "Year": 1703
+      },
+      {
+        "Deviation": -0.54393,
+        "Year": 1704
+      },
+      {
+        "Deviation": -0.53434,
+        "Year": 1705
+      },
+      {
+        "Deviation": -0.52592,
+        "Year": 1706
+      },
+      {
+        "Deviation": -0.51643,
+        "Year": 1707
+      },
+      {
+        "Deviation": -0.50495,
+        "Year": 1708
+      },
+      {
+        "Deviation": -0.49234,
+        "Year": 1709
+      },
+      {
+        "Deviation": -0.48099,
+        "Year": 1710
+      },
+      {
+        "Deviation": -0.47398,
+        "Year": 1711
+      },
+      {
+        "Deviation": -0.47393,
+        "Year": 1712
+      },
+      {
+        "Deviation": -0.48197,
+        "Year": 1713
+      },
+      {
+        "Deviation": -0.49719,
+        "Year": 1714
+      },
+      {
+        "Deviation": -0.51677,
+        "Year": 1715
+      },
+      {
+        "Deviation": -0.53658,
+        "Year": 1716
+      },
+      {
+        "Deviation": -0.55229,
+        "Year": 1717
+      },
+      {
+        "Deviation": -0.56038,
+        "Year": 1718
+      },
+      {
+        "Deviation": -0.55899,
+        "Year": 1719
+      },
+      {
+        "Deviation": -0.54833,
+        "Year": 1720
+      },
+      {
+        "Deviation": -0.53058,
+        "Year": 1721
+      },
+      {
+        "Deviation": -0.5094,
+        "Year": 1722
+      },
+      {
+        "Deviation": -0.48918,
+        "Year": 1723
+      },
+      {
+        "Deviation": -0.47408,
+        "Year": 1724
+      },
+      {
+        "Deviation": -0.46721,
+        "Year": 1725
+      },
+      {
+        "Deviation": -0.4699,
+        "Year": 1726
+      },
+      {
+        "Deviation": -0.48137,
+        "Year": 1727
+      },
+      {
+        "Deviation": -0.4988,
+        "Year": 1728
+      },
+      {
+        "Deviation": -0.5179,
+        "Year": 1729
+      },
+      {
+        "Deviation": -0.53386,
+        "Year": 1730
+      },
+      {
+        "Deviation": -0.54252,
+        "Year": 1731
+      },
+      {
+        "Deviation": -0.5415,
+        "Year": 1732
+      },
+      {
+        "Deviation": -0.53084,
+        "Year": 1733
+      },
+      {
+        "Deviation": -0.51306,
+        "Year": 1734
+      },
+      {
+        "Deviation": -0.49249,
+        "Year": 1735
+      },
+      {
+        "Deviation": -0.47393,
+        "Year": 1736
+      },
+      {
+        "Deviation": -0.46123,
+        "Year": 1737
+      },
+      {
+        "Deviation": -0.45602,
+        "Year": 1738
+      },
+      {
+        "Deviation": -0.45716,
+        "Year": 1739
+      },
+      {
+        "Deviation": -0.46109,
+        "Year": 1740
+      },
+      {
+        "Deviation": -0.46303,
+        "Year": 1741
+      },
+      {
+        "Deviation": -0.45859,
+        "Year": 1742
+      },
+      {
+        "Deviation": -0.44538,
+        "Year": 1743
+      },
+      {
+        "Deviation": -0.42395,
+        "Year": 1744
+      },
+      {
+        "Deviation": -0.39774,
+        "Year": 1745
+      },
+      {
+        "Deviation": -0.37214,
+        "Year": 1746
+      },
+      {
+        "Deviation": -0.35279,
+        "Year": 1747
+      },
+      {
+        "Deviation": -0.34386,
+        "Year": 1748
+      },
+      {
+        "Deviation": -0.34674,
+        "Year": 1749
+      },
+      {
+        "Deviation": -0.35968,
+        "Year": 1750
+      },
+      {
+        "Deviation": -0.37837,
+        "Year": 1751
+      },
+      {
+        "Deviation": -0.39735,
+        "Year": 1752
+      },
+      {
+        "Deviation": -0.41168,
+        "Year": 1753
+      },
+      {
+        "Deviation": -0.41838,
+        "Year": 1754
+      },
+      {
+        "Deviation": -0.41711,
+        "Year": 1755
+      },
+      {
+        "Deviation": -0.41002,
+        "Year": 1756
+      },
+      {
+        "Deviation": -0.40082,
+        "Year": 1757
+      },
+      {
+        "Deviation": -0.39353,
+        "Year": 1758
+      },
+      {
+        "Deviation": -0.39116,
+        "Year": 1759
+      },
+      {
+        "Deviation": -0.39495,
+        "Year": 1760
+      },
+      {
+        "Deviation": -0.40428,
+        "Year": 1761
+      },
+      {
+        "Deviation": -0.41704,
+        "Year": 1762
+      },
+      {
+        "Deviation": -0.43058,
+        "Year": 1763
+      },
+      {
+        "Deviation": -0.44249,
+        "Year": 1764
+      },
+      {
+        "Deviation": -0.45128,
+        "Year": 1765
+      },
+      {
+        "Deviation": -0.45658,
+        "Year": 1766
+      },
+      {
+        "Deviation": -0.45895,
+        "Year": 1767
+      },
+      {
+        "Deviation": -0.45947,
+        "Year": 1768
+      },
+      {
+        "Deviation": -0.45918,
+        "Year": 1769
+      },
+      {
+        "Deviation": -0.45875,
+        "Year": 1770
+      },
+      {
+        "Deviation": -0.45832,
+        "Year": 1771
+      },
+      {
+        "Deviation": -0.45753,
+        "Year": 1772
+      },
+      {
+        "Deviation": -0.4557,
+        "Year": 1773
+      },
+      {
+        "Deviation": -0.45211,
+        "Year": 1774
+      },
+      {
+        "Deviation": -0.44616,
+        "Year": 1775
+      },
+      {
+        "Deviation": -0.43756,
+        "Year": 1776
+      },
+      {
+        "Deviation": -0.42638,
+        "Year": 1777
+      },
+      {
+        "Deviation": -0.41313,
+        "Year": 1778
+      },
+      {
+        "Deviation": -0.39876,
+        "Year": 1779
+      },
+      {
+        "Deviation": -0.38451,
+        "Year": 1780
+      },
+      {
+        "Deviation": -0.37175,
+        "Year": 1781
+      },
+      {
+        "Deviation": -0.3616,
+        "Year": 1782
+      },
+      {
+        "Deviation": -0.35464,
+        "Year": 1783
+      },
+      {
+        "Deviation": -0.35065,
+        "Year": 1784
+      },
+      {
+        "Deviation": -0.34852,
+        "Year": 1785
+      },
+      {
+        "Deviation": -0.34659,
+        "Year": 1786
+      },
+      {
+        "Deviation": -0.34311,
+        "Year": 1787
+      },
+      {
+        "Deviation": -0.33696,
+        "Year": 1788
+      },
+      {
+        "Deviation": -0.32814,
+        "Year": 1789
+      },
+      {
+        "Deviation": -0.31801,
+        "Year": 1790
+      },
+      {
+        "Deviation": -0.30905,
+        "Year": 1791
+      },
+      {
+        "Deviation": -0.30421,
+        "Year": 1792
+      },
+      {
+        "Deviation": -0.30598,
+        "Year": 1793
+      },
+      {
+        "Deviation": -0.31553,
+        "Year": 1794
+      },
+      {
+        "Deviation": -0.33218,
+        "Year": 1795
+      },
+      {
+        "Deviation": -0.35343,
+        "Year": 1796
+      },
+      {
+        "Deviation": -0.37551,
+        "Year": 1797
+      },
+      {
+        "Deviation": -0.39434,
+        "Year": 1798
+      },
+      {
+        "Deviation": -0.4067,
+        "Year": 1799
+      },
+      {
+        "Deviation": -0.41109,
+        "Year": 1800
+      },
+      {
+        "Deviation": -0.4082,
+        "Year": 1801
+      },
+      {
+        "Deviation": -0.40085,
+        "Year": 1802
+      },
+      {
+        "Deviation": -0.39327,
+        "Year": 1803
+      },
+      {
+        "Deviation": -0.39012,
+        "Year": 1804
+      },
+      {
+        "Deviation": -0.39531,
+        "Year": 1805
+      },
+      {
+        "Deviation": -0.41104,
+        "Year": 1806
+      },
+      {
+        "Deviation": -0.4372,
+        "Year": 1807
+      },
+      {
+        "Deviation": -0.47135,
+        "Year": 1808
+      },
+      {
+        "Deviation": -0.50913,
+        "Year": 1809
+      },
+      {
+        "Deviation": -0.54524,
+        "Year": 1810
+      },
+      {
+        "Deviation": -0.57455,
+        "Year": 1811
+      },
+      {
+        "Deviation": -0.59311,
+        "Year": 1812
+      },
+      {
+        "Deviation": -0.59898,
+        "Year": 1813
+      },
+      {
+        "Deviation": -0.59247,
+        "Year": 1814
+      },
+      {
+        "Deviation": -0.57586,
+        "Year": 1815
+      },
+      {
+        "Deviation": -0.55268,
+        "Year": 1816
+      },
+      {
+        "Deviation": -0.52668,
+        "Year": 1817
+      },
+      {
+        "Deviation": -0.50097,
+        "Year": 1818
+      },
+      {
+        "Deviation": -0.47732,
+        "Year": 1819
+      },
+      {
+        "Deviation": -0.45601,
+        "Year": 1820
+      },
+      {
+        "Deviation": -0.43612,
+        "Year": 1821
+      },
+      {
+        "Deviation": -0.41626,
+        "Year": 1822
+      },
+      {
+        "Deviation": -0.39531,
+        "Year": 1823
+      },
+      {
+        "Deviation": -0.37315,
+        "Year": 1824
+      },
+      {
+        "Deviation": -0.35095,
+        "Year": 1825
+      },
+      {
+        "Deviation": -0.33111,
+        "Year": 1826
+      },
+      {
+        "Deviation": -0.31675,
+        "Year": 1827
+      },
+      {
+        "Deviation": -0.31099,
+        "Year": 1828
+      },
+      {
+        "Deviation": -0.3161,
+        "Year": 1829
+      },
+      {
+        "Deviation": -0.33289,
+        "Year": 1830
+      },
+      {
+        "Deviation": -0.36043,
+        "Year": 1831
+      },
+      {
+        "Deviation": -0.3961,
+        "Year": 1832
+      },
+      {
+        "Deviation": -0.43612,
+        "Year": 1833
+      },
+      {
+        "Deviation": -0.47629,
+        "Year": 1834
+      },
+      {
+        "Deviation": -0.51287,
+        "Year": 1835
+      },
+      {
+        "Deviation": -0.54328,
+        "Year": 1836
+      },
+      {
+        "Deviation": -0.56655,
+        "Year": 1837
+      },
+      {
+        "Deviation": -0.5832,
+        "Year": 1838
+      },
+      {
+        "Deviation": -0.59483,
+        "Year": 1839
+      },
+      {
+        "Deviation": -0.60319,
+        "Year": 1840
+      },
+      {
+        "Deviation": -0.60935,
+        "Year": 1841
+      },
+      {
+        "Deviation": -0.61299,
+        "Year": 1842
+      },
+      {
+        "Deviation": -0.61218,
+        "Year": 1843
+      },
+      {
+        "Deviation": -0.60382,
+        "Year": 1844
+      },
+      {
+        "Deviation": -0.58451,
+        "Year": 1845
+      },
+      {
+        "Deviation": -0.55179,
+        "Year": 1846
+      },
+      {
+        "Deviation": -0.50527,
+        "Year": 1847
+      },
+      {
+        "Deviation": -0.44731,
+        "Year": 1848
+      },
+      {
+        "Deviation": -0.38303,
+        "Year": 1849
+      },
+      {
+        "Deviation": -0.32778,
+        "Year": 1850
+      },
+      {
+        "Deviation": -0.21188,
+        "Year": 1851
+      },
+      {
+        "Deviation": -0.166345,
+        "Year": 1852
+      },
+      {
+        "Deviation": -0.192075,
+        "Year": 1853
+      },
+      {
+        "Deviation": -0.14089,
+        "Year": 1854
+      },
+      {
+        "Deviation": -0.212365,
+        "Year": 1855
+      },
+      {
+        "Deviation": -0.325985,
+        "Year": 1856
+      },
+      {
+        "Deviation": -0.36305,
+        "Year": 1857
+      },
+      {
+        "Deviation": -0.383805,
+        "Year": 1858
+      },
+      {
+        "Deviation": -0.310075,
+        "Year": 1859
+      },
+      {
+        "Deviation": -0.39497,
+        "Year": 1860
+      },
+      {
+        "Deviation": -0.361985,
+        "Year": 1861
+      },
+      {
+        "Deviation": -0.539425,
+        "Year": 1862
+      },
+      {
+        "Deviation": -0.28557,
+        "Year": 1863
+      },
+      {
+        "Deviation": -0.42648,
+        "Year": 1864
+      },
+      {
+        "Deviation": -0.2728,
+        "Year": 1865
+      },
+      {
+        "Deviation": -0.231275,
+        "Year": 1866
+      },
+      {
+        "Deviation": -0.286025,
+        "Year": 1867
+      },
+      {
+        "Deviation": -0.181495,
+        "Year": 1868
+      },
+      {
+        "Deviation": -0.189905,
+        "Year": 1869
+      },
+      {
+        "Deviation": -0.241435,
+        "Year": 1870
+      },
+      {
+        "Deviation": -0.35125,
+        "Year": 1871
+      },
+      {
+        "Deviation": -0.252075,
+        "Year": 1872
+      },
+      {
+        "Deviation": -0.30442,
+        "Year": 1873
+      },
+      {
+        "Deviation": -0.28032,
+        "Year": 1874
+      },
+      {
+        "Deviation": -0.37868,
+        "Year": 1875
+      },
+      {
+        "Deviation": -0.276,
+        "Year": 1876
+      },
+      {
+        "Deviation": -0.087195,
+        "Year": 1877
+      },
+      {
+        "Deviation": 0.015005,
+        "Year": 1878
+      },
+      {
+        "Deviation": -0.198215,
+        "Year": 1879
+      },
+      {
+        "Deviation": -0.225445,
+        "Year": 1880
+      },
+      {
+        "Deviation": -0.24699,
+        "Year": 1881
+      },
+      {
+        "Deviation": -0.273465,
+        "Year": 1882
+      },
+      {
+        "Deviation": -0.34843,
+        "Year": 1883
+      },
+      {
+        "Deviation": -0.41388,
+        "Year": 1884
+      },
+      {
+        "Deviation": -0.35883,
+        "Year": 1885
+      },
+      {
+        "Deviation": -0.336625,
+        "Year": 1886
+      },
+      {
+        "Deviation": -0.33708,
+        "Year": 1887
+      },
+      {
+        "Deviation": -0.2879,
+        "Year": 1888
+      },
+      {
+        "Deviation": -0.22723,
+        "Year": 1889
+      },
+      {
+        "Deviation": -0.350425,
+        "Year": 1890
+      },
+      {
+        "Deviation": -0.32811,
+        "Year": 1891
+      },
+      {
+        "Deviation": -0.429865,
+        "Year": 1892
+      },
+      {
+        "Deviation": -0.474705,
+        "Year": 1893
+      },
+      {
+        "Deviation": -0.386525,
+        "Year": 1894
+      },
+      {
+        "Deviation": -0.36796,
+        "Year": 1895
+      },
+      {
+        "Deviation": -0.23709,
+        "Year": 1896
+      },
+      {
+        "Deviation": -0.20803,
+        "Year": 1897
+      },
+      {
+        "Deviation": -0.259245,
+        "Year": 1898
+      },
+      {
+        "Deviation": -0.21417,
+        "Year": 1899
+      },
+      {
+        "Deviation": -0.153725,
+        "Year": 1900
+      },
+      {
+        "Deviation": -0.18169,
+        "Year": 1901
+      },
+      {
+        "Deviation": -0.32654,
+        "Year": 1902
+      },
+      {
+        "Deviation": -0.370995,
+        "Year": 1903
+      },
+      {
+        "Deviation": -0.44092,
+        "Year": 1904
+      },
+      {
+        "Deviation": -0.389075,
+        "Year": 1905
+      },
+      {
+        "Deviation": -0.33593,
+        "Year": 1906
+      },
+      {
+        "Deviation": -0.482375,
+        "Year": 1907
+      },
+      {
+        "Deviation": -0.473375,
+        "Year": 1908
+      },
+      {
+        "Deviation": -0.463885,
+        "Year": 1909
+      },
+      {
+        "Deviation": -0.441155,
+        "Year": 1910
+      },
+      {
+        "Deviation": -0.435185,
+        "Year": 1911
+      },
+      {
+        "Deviation": -0.4504,
+        "Year": 1912
+      },
+      {
+        "Deviation": -0.43507,
+        "Year": 1913
+      },
+      {
+        "Deviation": -0.325825,
+        "Year": 1914
+      },
+      {
+        "Deviation": -0.266775,
+        "Year": 1915
+      },
+      {
+        "Deviation": -0.394185,
+        "Year": 1916
+      },
+      {
+        "Deviation": -0.445085,
+        "Year": 1917
+      },
+      {
+        "Deviation": -0.37046,
+        "Year": 1918
+      },
+      {
+        "Deviation": -0.36694,
+        "Year": 1919
+      },
+      {
+        "Deviation": -0.31599,
+        "Year": 1920
+      },
+      {
+        "Deviation": -0.214545,
+        "Year": 1921
+      },
+      {
+        "Deviation": -0.271115,
+        "Year": 1922
+      },
+      {
+        "Deviation": -0.247225,
+        "Year": 1923
+      },
+      {
+        "Deviation": -0.22575,
+        "Year": 1924
+      },
+      {
+        "Deviation": -0.15766,
+        "Year": 1925
+      },
+      {
+        "Deviation": -0.09022,
+        "Year": 1926
+      },
+      {
+        "Deviation": -0.13318,
+        "Year": 1927
+      },
+      {
+        "Deviation": -0.14158,
+        "Year": 1928
+      },
+      {
+        "Deviation": -0.22619,
+        "Year": 1929
+      },
+      {
+        "Deviation": -0.07063,
+        "Year": 1930
+      },
+      {
+        "Deviation": -0.04509,
+        "Year": 1931
+      },
+      {
+        "Deviation": -0.09177,
+        "Year": 1932
+      },
+      {
+        "Deviation": -0.1687645,
+        "Year": 1933
+      },
+      {
+        "Deviation": -0.053471,
+        "Year": 1934
+      },
+      {
+        "Deviation": -0.0683255,
+        "Year": 1935
+      },
+      {
+        "Deviation": -0.0253215,
+        "Year": 1936
+      },
+      {
+        "Deviation": 0.0547205,
+        "Year": 1937
+      },
+      {
+        "Deviation": 0.0881055,
+        "Year": 1938
+      },
+      {
+        "Deviation": 0.0663485,
+        "Year": 1939
+      },
+      {
+        "Deviation": 0.054245,
+        "Year": 1940
+      },
+      {
+        "Deviation": 0.0667895,
+        "Year": 1941
+      },
+      {
+        "Deviation": 0.0487965,
+        "Year": 1942
+      },
+      {
+        "Deviation": 0.0737115,
+        "Year": 1943
+      },
+      {
+        "Deviation": 0.100616,
+        "Year": 1944
+      },
+      {
+        "Deviation": 0.0040795,
+        "Year": 1945
+      },
+      {
+        "Deviation": -0.0074555,
+        "Year": 1946
+      },
+      {
+        "Deviation": -0.021074,
+        "Year": 1947
+      },
+      {
+        "Deviation": 0.003063,
+        "Year": 1948
+      },
+      {
+        "Deviation": -0.0544775,
+        "Year": 1949
+      },
+      {
+        "Deviation": -0.1288445,
+        "Year": 1950
+      },
+      {
+        "Deviation": -0.020818,
+        "Year": 1951
+      },
+      {
+        "Deviation": -0.0289155,
+        "Year": 1952
+      },
+      {
+        "Deviation": 0.0501365,
+        "Year": 1953
+      },
+      {
+        "Deviation": -0.0769565,
+        "Year": 1954
+      },
+      {
+        "Deviation": -0.0871755,
+        "Year": 1955
+      },
+      {
+        "Deviation": -0.1658045,
+        "Year": 1956
+      },
+      {
+        "Deviation": -0.019285,
+        "Year": 1957
+      },
+      {
+        "Deviation": 0.045879,
+        "Year": 1958
+      },
+      {
+        "Deviation": 0.0341653,
+        "Year": 1959
+      },
+      {
+        "Deviation": 0.0108372,
+        "Year": 1960
+      },
+      {
+        "Deviation": 0.0362006,
+        "Year": 1961
+      },
+      {
+        "Deviation": 0.0435015,
+        "Year": 1962
+      },
+      {
+        "Deviation": 0.064792,
+        "Year": 1963
+      },
+      {
+        "Deviation": -0.103199,
+        "Year": 1964
+      },
+      {
+        "Deviation": -0.094439,
+        "Year": 1965
+      },
+      {
+        "Deviation": -0.0328565,
+        "Year": 1966
+      },
+      {
+        "Deviation": -0.0266605,
+        "Year": 1967
+      },
+      {
+        "Deviation": -0.0760815,
+        "Year": 1968
+      },
+      {
+        "Deviation": -0.077615,
+        "Year": 1969
+      },
+      {
+        "Deviation": -0.08661,
+        "Year": 1970
+      },
+      {
+        "Deviation": -0.16454,
+        "Year": 1971
+      },
+      {
+        "Deviation": -0.18791,
+        "Year": 1972
+      },
+      {
+        "Deviation": -0.070265,
+        "Year": 1973
+      },
+      {
+        "Deviation": -0.211745,
+        "Year": 1974
+      },
+      {
+        "Deviation": -0.13373,
+        "Year": 1975
+      },
+      {
+        "Deviation": -0.202175,
+        "Year": 1976
+      },
+      {
+        "Deviation": -0.017193,
+        "Year": 1977
+      },
+      {
+        "Deviation": -0.039881,
+        "Year": 1978
+      },
+      {
+        "Deviation": 0.0099675,
+        "Year": 1979
+      },
+      {
+        "Deviation": 0.0532555,
+        "Year": 1980
+      },
+      {
+        "Deviation": 0.142101,
+        "Year": 1981
+      },
+      {
+        "Deviation": 0.0085785,
+        "Year": 1982
+      },
+      {
+        "Deviation": 0.1036015,
+        "Year": 1983
+      },
+      {
+        "Deviation": -0.0248305,
+        "Year": 1984
+      },
+      {
+        "Deviation": -0.045043,
+        "Year": 1985
+      },
+      {
+        "Deviation": 0.042264,
+        "Year": 1986
+      },
+      {
+        "Deviation": 0.1197105,
+        "Year": 1987
+      },
+      {
+        "Deviation": 0.176245,
+        "Year": 1988
+      },
+      {
+        "Deviation": 0.15775,
+        "Year": 1989
+      },
+      {
+        "Deviation": 0.29478,
+        "Year": 1990
+      },
+      {
+        "Deviation": 0.255965,
+        "Year": 1991
+      },
+      {
+        "Deviation": 0.14125,
+        "Year": 1992
+      },
+      {
+        "Deviation": 0.174945,
+        "Year": 1993
+      },
+      {
+        "Deviation": 0.257765,
+        "Year": 1994
+      },
+      {
+        "Deviation": 0.36481,
+        "Year": 1995
+      },
+      {
+        "Deviation": 0.23443,
+        "Year": 1996
+      },
+      {
+        "Deviation": 0.396135,
+        "Year": 1997
+      },
+      {
+        "Deviation": 0.4986,
+        "Year": 1998
+      },
+      {
+        "Deviation": 0.41898,
+        "Year": 1999
+      },
+      {
+        "Deviation": 0.438275,
+        "Year": 2000
+      },
+      {
+        "Deviation": 0.53332,
+        "Year": 2001
+      },
+      {
+        "Deviation": 0.565375,
+        "Year": 2002
+      },
+      {
+        "Deviation": 0.601295,
+        "Year": 2003
+      },
+      {
+        "Deviation": 0.591035,
+        "Year": 2004
+      },
+      {
+        "Deviation": 0.657175,
+        "Year": 2005
+      },
+      {
+        "Deviation": 0.636215,
+        "Year": 2006
+      },
+      {
+        "Deviation": 0.713,
+        "Year": 2007
+      },
+      {
+        "Deviation": 0.569,
+        "Year": 2008
+      },
+      {
+        "Deviation": 0.594,
+        "Year": 2009
+      },
+      {
+        "Deviation": 0.74,
+        "Year": 2010
+      },
+      {
+        "Deviation": 0.575,
+        "Year": 2011
+      },
+      {
+        "Deviation": 0.627,
+        "Year": 2012
+      },
+      {
+        "Deviation": 0.674,
+        "Year": 2013
+      },
+      {
+        "Deviation": 0.779,
+        "Year": 2014
+      },
+      {
+        "Deviation": 1.033,
+        "Year": 2015
+      },
+      {
+        "Deviation": 1.064,
+        "Year": 2016
+      },
+      {
+        "Deviation": 0.922,
+        "Year": 2017
+      },
+      {
+        "Deviation": 0.789,
+        "Year": 2018
+      },
+      {
+        "Deviation": 0.972,
+        "Year": 2019
+      }
+    ]
+  },
+  "height": 400,
+  "layer": [
+    {
+      "encoding": {
+        "color": {
+          "field": "Deviation",
+          "legend": null,
+          "scale": {
+            "domainMax": 0.5,
+            "domainMid": 0,
+            "domainMin": -0.5,
+            "range": [
+              "#6babd0",
+              "lightgray",
+              "#bf363a"
+            ]
+          },
+          "type": "quantitative"
+        },
+        "size": {
+          "condition": {
+            "selection": {
+              "not": "selector001"
+            },
+            "value": 6
+          },
+          "value": 100
+        },
+        "x": {
+          "axis": {
+            "grid": false,
+            "labelAngle": 0,
+            "values": [
+              1000,
+              1050,
+              1100,
+              1150,
+              1200,
+              1250,
+              1300,
+              1350,
+              1400,
+              1450,
+              1500,
+              1550,
+              1600,
+              1650,
+              1700,
+              1750,
+              1800,
+              1850,
+              1900,
+              1950,
+              2000
+            ]
+          },
+          "field": "Year",
+          "type": "ordinal"
+        },
+        "y": {
+          "axis": {
+            "grid": true,
+            "title": "Deviation from 1951-1990 mean temperature (\u00b0C)"
+          },
+          "field": "Deviation",
+          "type": "quantitative"
+        }
+      },
+      "mark": "point"
+    },
+    {
+      "encoding": {
+        "opacity": {
+          "value": 0
+        },
+        "tooltip": [
+          {
+            "field": "Year",
+            "type": "quantitative"
+          },
+          {
+            "field": "Deviation",
+            "format": ".2f",
+            "title": "Deviation (\u00b0C)"
+          }
+        ],
+        "x": {
+          "field": "Year",
+          "type": "ordinal"
+        }
+      },
+      "mark": "point",
+      "selection": {
+        "selector001": {
+          "clear": "mouseout",
+          "empty": "none",
+          "fields": [
+            "Year"
+          ],
+          "nearest": true,
+          "on": "mouseover",
+          "type": "single"
+        }
+      }
+    },
+    {
+      "encoding": {
+        "x": {
+          "field": "Year",
+          "type": "ordinal"
+        }
+      },
+      "mark": {
+        "color": "gray",
+        "type": "rule"
+      },
+      "transform": [
+        {
+          "filter": {
+            "selection": "selector001"
+          }
+        }
+      ]
+    },
+    {
+      "data": {
+        "name": "data-c71ae55ec06ce368f69a3c6de60dcb03"
+      },
+      "encoding": {
+        "size": {
+          "value": 1
+        },
+        "y": {
+          "field": "Deviation",
+          "type": "quantitative"
+        }
+      },
+      "mark": {
+        "color": "gray",
+        "type": "rule"
+      }
+    }
+  ],
+  "width": "container"
+};
+        const options = {"renderer": "canvas", "actions": false};
+        buildChart(spec, options);
+      </script>
+      <div id='custom-tooltip-element'></div>
+
+
+
+  </body>
+
+</html>

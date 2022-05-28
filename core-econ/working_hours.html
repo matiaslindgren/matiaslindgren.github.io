@@ -1,0 +1,7290 @@
+<!DOCTYPE HTML>
+<html lang="en">
+
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Working hours and wages
+</title>
+
+      <script src="https://cdn.jsdelivr.net/npm/vega@5" crossorigin="anonymous">
+      </script>
+      <script src="https://cdn.jsdelivr.net/npm/vega-lite@4" crossorigin="anonymous">
+      </script>
+      <script src="https://cdn.jsdelivr.net/npm/vega-embed@6" crossorigin="anonymous">
+      </script>
+
+
+
+    <style>
+body {
+  font-family: Georgia, serif;
+  padding: 1rem;
+}
+
+a {
+  text-decoration: none;
+}
+
+a:hover {
+  text-decoration: underline;
+}
+
+#vega-container {
+  max-width: 70em;
+  width: 100%;
+}
+
+form.vega-bindings .vega-bind label {
+  display: grid;
+  grid-template-columns: 6em 14em 6em;
+}
+
+form.vega-bindings .vega-bind label span {
+  margin-left: 0.5em;
+}
+
+dl {
+  padding-top: 1rem;
+  padding-bottom: 1rem;
+  max-width: 800px;
+}
+
+dl,
+dd {
+  font-size: 0.9rem;
+}
+
+dt {
+  font-weight: bold;
+}
+
+dd {
+  margin-bottom: 1rem;
+}
+
+ul.data-source-url-list {
+  padding: 0;
+  list-style: none;
+}
+
+table {
+  border-collapse: collapse;
+  width: 100%;
+  max-width: 800px;
+}
+
+table td {
+  vertical-align: baseline;
+}
+
+table tr {
+  border-bottom: 1px solid lightgray;
+}
+
+table.tooltip {
+  border-collapse: initial;
+  width: initial;
+  max-width: initial;
+}
+
+table.tooltip tbody tr td {
+  vertical-align: middle;
+}
+
+#custom-tooltip-element.visible {
+  visibility: visible;
+}
+
+#custom-tooltip-element {
+  visibility: hidden;
+  padding: 0.5rem;
+  position: fixed;
+  z-index: 1000;
+  font-size: 0.8rem;
+  border-radius: 3px;
+  box-shadow: 2px 2px 4px rgba(0, 0, 0, 0.1);
+  background-color: rgba(255, 255, 255, 0.95);
+  border: 1px solid #d9d9d9;
+  color: black;
+}
+
+dd.module-description ul {
+  padding-left: 0px;
+  list-style-position: inside;
+}    </style>
+
+
+  </head>
+
+  <body>
+    <a href="index.html">go back</a>
+    <h1>Working hours and wages
+</h1>
+    <dl>
+      <dt>Updated at</dt>
+      <dd>29. May 2022</dd>
+        <dt>Description</dt>
+        <dd class="module-description">
+              <ul>
+                <li>Comparing development of average annual wages to average annual hours worked per worker.</li>
+                <li>Wages are reported in 2020 USD PPP.</li>
+              </ul>
+        </dd>
+        <dt>Data source</dt>
+        <dd>OECD.Stat: "Average annual hours actually worked per worker" (code <code>ANHRS</code>, total employment only) and "Average annual wages" (code <code>AV_AN_WAGE</code>). Average hourly wages are computed by dividing <code>AV_AN_WAGE</code> with <code>ANHRS</code>.
+</dd>
+        <dt>Data downloaded from</dt>
+        <dd>
+          <ul class='data-source-url-list'>
+            <li><a href="https://stats.oecd.org/Index.aspx?DataSetCode=ANHRS">Average annual hours actually worked per worker</a></li>
+            <li><a href="https://stats.oecd.org/Index.aspx?DataSetCode=AV_AN_WAGE">Average annual wages</a></li>
+          </ul>
+        </dd>
+        <dt>Book chapter</dt>
+        <dd><a href="https://core-econ.org/the-economy/book/text/03.html#310-explaining-our-working-hours-differences-between-countries
+">3.10 Explaining our working hours: Differences between countries
+</a></dd>
+    </dl>
+
+
+      <div id="vega-container"></div>
+      <script type="text/javascript">
+function renderTooltip(event, value, config) {
+  const tooltipContainer = document.getElementById("custom-tooltip-element");
+  tooltipContainer.classList.add("visible");
+  if (!value) {
+    tooltipContainer.classList.remove("visible");
+    return;
+  }
+  tooltipContainer.setAttribute(
+    "style",
+    `top: ${event.clientY + 15}px; left: ${event.clientX + 15}px`
+  );
+  const colorScheme = vega.scheme(findScheme(spec));
+  let { datatype, title, ...values } = value;
+  values = Array.from(Object.keys(values), (key, i) => ({
+    key: key,
+    val: values[key],
+    color: colorScheme[i],
+  }));
+  values.sort((a, b) => parseFloat(b.val) - parseFloat(a.val));
+  const fmt = getFormatter(config.formatter[datatype]);
+  tooltipContainer.innerHTML = sortedTable(title, values, fmt).outerHTML;
+}
+
+function getFormatter({ name, digits }) {
+  const currency = (c) =>
+    Intl.NumberFormat("en-US", {
+      maximumSignificantDigits: digits,
+      style: "currency",
+      currency: c,
+    });
+  const unit = (u) =>
+    Intl.NumberFormat("en-US", { maximumSignificantDigits: digits, style: "unit", unit: u });
+  switch (name) {
+    case "hour":
+      return unit("hour");
+    case "USD":
+    default:
+      return currency("USD");
+  }
+}
+
+function svgCircle(color) {
+  return [
+    `<svg style="display: table-cell; height: 1em; width: 1em; fill: ${color};" viewBox="0 0 2 2" xmlns="http://www.w3.org/2000/svg">`,
+    `<circle cx="1.1" cy="1.1" r="0.8"/>`,
+    `</svg>`,
+  ].join("\n");
+}
+
+const element = (tag) => document.createElement(tag);
+
+function findScheme(spec) {
+  for (const layer of spec.hconcat || spec.vconcat || spec.layer) {
+    const scheme =
+      layer &&
+      layer.encoding &&
+      layer.encoding.color &&
+      layer.encoding.color.scale &&
+      layer.encoding.color.scale.scheme;
+    if (scheme) {
+      return scheme;
+    }
+  }
+  return "tableau10";
+}
+
+function sortedTable(title, values, fmt) {
+  const container = element("div");
+  const header = element("h4");
+  header.setAttribute("style", "margin: 0 auto 0.5em;");
+  header.innerText = title;
+  container.appendChild(header);
+  const tbody = element("tbody");
+  for (let row of values) {
+    const tr = element("tr");
+    tr.innerHTML = [
+      `<td>${svgCircle(row.color)}</td>`,
+      `<td>${row.key}</td>`,
+      `<td>${fmt.format(row.val)}</td>`,
+    ].join("\n");
+    tbody.appendChild(tr);
+  }
+  const table = element("table");
+  table.classList.add("tooltip");
+  table.appendChild(tbody);
+  container.appendChild(table);
+  return container;
+}
+
+let vegaView;
+
+function buildChart(spec, options) {
+  vegaEmbed("#vega-container", spec, options)
+    .then((result) => {
+      vegaView = result.view;
+      const meta = spec.usermeta;
+      if (!meta) {
+        return;
+      }
+      if (meta.inputsOnTop) {
+        const bindings = document.querySelector("#vega-container.vega-embed form.vega-bindings");
+        const canvas = document.querySelector("#vega-container.vega-embed canvas");
+        canvas.parentNode.insertBefore(bindings, canvas);
+      }
+      if (meta.customTooltip) {
+        result.view.tooltip((handler, event, item, value) =>
+          renderTooltip(event, value, meta.customTooltip)
+        );
+      }
+      return result.view.runAsync();
+    })
+    .catch(console.error);
+}        const spec = {
+  "$schema": "https://vega.github.io/schema/vega-lite/v4.17.0.json",
+  "config": {
+    "axis": {
+      "labelFont": "Georgia",
+      "labelFontSize": 14,
+      "titleFont": "Georgia",
+      "titleFontSize": 16
+    },
+    "header": {
+      "labelFont": "Georgia",
+      "labelFontSize": 14,
+      "titleFont": "Georgia",
+      "titleFontSize": 16
+    },
+    "legend": {
+      "labelFont": "Georgia",
+      "labelFontSize": 14,
+      "titleFont": "Georgia",
+      "titleFontSize": 16
+    },
+    "title": {
+      "font": "Georgia",
+      "fontSize": 16
+    },
+    "view": {
+      "continuousHeight": 300,
+      "continuousWidth": 400
+    }
+  },
+  "datasets": {
+    "data-0c351bdc0d91583ae3437fb284c4f1f6": [
+      {
+        "country": "Denmark",
+        "datatype": "wages",
+        "value": 43776.5976944339,
+        "year": "1992-01-01T00:00:00"
+      },
+      {
+        "country": "Denmark",
+        "datatype": "wages",
+        "value": 44254.8835756581,
+        "year": "1993-01-01T00:00:00"
+      },
+      {
+        "country": "Denmark",
+        "datatype": "wages",
+        "value": 42666.0579433195,
+        "year": "1994-01-01T00:00:00"
+      },
+      {
+        "country": "Denmark",
+        "datatype": "wages",
+        "value": 43561.5484857321,
+        "year": "1995-01-01T00:00:00"
+      },
+      {
+        "country": "Denmark",
+        "datatype": "wages",
+        "value": 44359.0156031489,
+        "year": "1996-01-01T00:00:00"
+      },
+      {
+        "country": "Denmark",
+        "datatype": "wages",
+        "value": 45071.0233653229,
+        "year": "1997-01-01T00:00:00"
+      },
+      {
+        "country": "Denmark",
+        "datatype": "wages",
+        "value": 45870.5836675736,
+        "year": "1998-01-01T00:00:00"
+      },
+      {
+        "country": "Denmark",
+        "datatype": "wages",
+        "value": 46386.7769660791,
+        "year": "1999-01-01T00:00:00"
+      },
+      {
+        "country": "Denmark",
+        "datatype": "wages",
+        "value": 46360.0732481077,
+        "year": "2000-01-01T00:00:00"
+      },
+      {
+        "country": "Denmark",
+        "datatype": "wages",
+        "value": 46668.8445134325,
+        "year": "2001-01-01T00:00:00"
+      },
+      {
+        "country": "Denmark",
+        "datatype": "wages",
+        "value": 47742.3257266107,
+        "year": "2002-01-01T00:00:00"
+      },
+      {
+        "country": "Denmark",
+        "datatype": "wages",
+        "value": 48934.1832474341,
+        "year": "2003-01-01T00:00:00"
+      },
+      {
+        "country": "Denmark",
+        "datatype": "wages",
+        "value": 50030.8665366715,
+        "year": "2004-01-01T00:00:00"
+      },
+      {
+        "country": "Denmark",
+        "datatype": "wages",
+        "value": 50878.9370953566,
+        "year": "2005-01-01T00:00:00"
+      },
+      {
+        "country": "Denmark",
+        "datatype": "wages",
+        "value": 51745.2357634446,
+        "year": "2006-01-01T00:00:00"
+      },
+      {
+        "country": "Denmark",
+        "datatype": "wages",
+        "value": 52309.1761870157,
+        "year": "2007-01-01T00:00:00"
+      },
+      {
+        "country": "Denmark",
+        "datatype": "wages",
+        "value": 53017.211201936,
+        "year": "2008-01-01T00:00:00"
+      },
+      {
+        "country": "Denmark",
+        "datatype": "wages",
+        "value": 54302.6336273298,
+        "year": "2009-01-01T00:00:00"
+      },
+      {
+        "country": "Denmark",
+        "datatype": "wages",
+        "value": 54928.3171318432,
+        "year": "2010-01-01T00:00:00"
+      },
+      {
+        "country": "Denmark",
+        "datatype": "wages",
+        "value": 54643.7976544649,
+        "year": "2011-01-01T00:00:00"
+      },
+      {
+        "country": "Denmark",
+        "datatype": "wages",
+        "value": 54570.0756807942,
+        "year": "2012-01-01T00:00:00"
+      },
+      {
+        "country": "Denmark",
+        "datatype": "wages",
+        "value": 54924.954335293,
+        "year": "2013-01-01T00:00:00"
+      },
+      {
+        "country": "Denmark",
+        "datatype": "wages",
+        "value": 55975.8913486461,
+        "year": "2014-01-01T00:00:00"
+      },
+      {
+        "country": "Denmark",
+        "datatype": "wages",
+        "value": 56959.8436897856,
+        "year": "2015-01-01T00:00:00"
+      },
+      {
+        "country": "Denmark",
+        "datatype": "wages",
+        "value": 57043.3903425065,
+        "year": "2016-01-01T00:00:00"
+      },
+      {
+        "country": "Denmark",
+        "datatype": "wages",
+        "value": 57355.1151555023,
+        "year": "2017-01-01T00:00:00"
+      },
+      {
+        "country": "Denmark",
+        "datatype": "wages",
+        "value": 57794.204719732,
+        "year": "2018-01-01T00:00:00"
+      },
+      {
+        "country": "Denmark",
+        "datatype": "wages",
+        "value": 57967.3139494302,
+        "year": "2019-01-01T00:00:00"
+      },
+      {
+        "country": "Denmark",
+        "datatype": "wages",
+        "value": 58429.6521388968,
+        "year": "2020-01-01T00:00:00"
+      },
+      {
+        "country": "Finland",
+        "datatype": "wages",
+        "value": 34989.6726217428,
+        "year": "1992-01-01T00:00:00"
+      },
+      {
+        "country": "Finland",
+        "datatype": "wages",
+        "value": 33771.1614562379,
+        "year": "1993-01-01T00:00:00"
+      },
+      {
+        "country": "Finland",
+        "datatype": "wages",
+        "value": 34260.481649836,
+        "year": "1994-01-01T00:00:00"
+      },
+      {
+        "country": "Finland",
+        "datatype": "wages",
+        "value": 35612.0703848347,
+        "year": "1995-01-01T00:00:00"
+      },
+      {
+        "country": "Finland",
+        "datatype": "wages",
+        "value": 36429.5839392504,
+        "year": "1996-01-01T00:00:00"
+      },
+      {
+        "country": "Finland",
+        "datatype": "wages",
+        "value": 36465.6972375822,
+        "year": "1997-01-01T00:00:00"
+      },
+      {
+        "country": "Finland",
+        "datatype": "wages",
+        "value": 37436.0651233826,
+        "year": "1998-01-01T00:00:00"
+      },
+      {
+        "country": "Finland",
+        "datatype": "wages",
+        "value": 38311.2668588559,
+        "year": "1999-01-01T00:00:00"
+      },
+      {
+        "country": "Finland",
+        "datatype": "wages",
+        "value": 38969.023992333,
+        "year": "2000-01-01T00:00:00"
+      },
+      {
+        "country": "Finland",
+        "datatype": "wages",
+        "value": 39174.0057562552,
+        "year": "2001-01-01T00:00:00"
+      },
+      {
+        "country": "Finland",
+        "datatype": "wages",
+        "value": 39384.4608592046,
+        "year": "2002-01-01T00:00:00"
+      },
+      {
+        "country": "Finland",
+        "datatype": "wages",
+        "value": 40132.9575901584,
+        "year": "2003-01-01T00:00:00"
+      },
+      {
+        "country": "Finland",
+        "datatype": "wages",
+        "value": 41457.5046170601,
+        "year": "2004-01-01T00:00:00"
+      },
+      {
+        "country": "Finland",
+        "datatype": "wages",
+        "value": 42356.7698606704,
+        "year": "2005-01-01T00:00:00"
+      },
+      {
+        "country": "Finland",
+        "datatype": "wages",
+        "value": 43246.501132967,
+        "year": "2006-01-01T00:00:00"
+      },
+      {
+        "country": "Finland",
+        "datatype": "wages",
+        "value": 43831.342288816,
+        "year": "2007-01-01T00:00:00"
+      },
+      {
+        "country": "Finland",
+        "datatype": "wages",
+        "value": 44204.2691129914,
+        "year": "2008-01-01T00:00:00"
+      },
+      {
+        "country": "Finland",
+        "datatype": "wages",
+        "value": 44586.3665579335,
+        "year": "2009-01-01T00:00:00"
+      },
+      {
+        "country": "Finland",
+        "datatype": "wages",
+        "value": 45211.0434454361,
+        "year": "2010-01-01T00:00:00"
+      },
+      {
+        "country": "Finland",
+        "datatype": "wages",
+        "value": 45233.4544959247,
+        "year": "2011-01-01T00:00:00"
+      },
+      {
+        "country": "Finland",
+        "datatype": "wages",
+        "value": 45280.204117747,
+        "year": "2012-01-01T00:00:00"
+      },
+      {
+        "country": "Finland",
+        "datatype": "wages",
+        "value": 44836.441529201,
+        "year": "2013-01-01T00:00:00"
+      },
+      {
+        "country": "Finland",
+        "datatype": "wages",
+        "value": 44837.4445180097,
+        "year": "2014-01-01T00:00:00"
+      },
+      {
+        "country": "Finland",
+        "datatype": "wages",
+        "value": 45194.1776085612,
+        "year": "2015-01-01T00:00:00"
+      },
+      {
+        "country": "Finland",
+        "datatype": "wages",
+        "value": 45588.3582599615,
+        "year": "2016-01-01T00:00:00"
+      },
+      {
+        "country": "Finland",
+        "datatype": "wages",
+        "value": 45338.7564886381,
+        "year": "2017-01-01T00:00:00"
+      },
+      {
+        "country": "Finland",
+        "datatype": "wages",
+        "value": 45770.8422682442,
+        "year": "2018-01-01T00:00:00"
+      },
+      {
+        "country": "Finland",
+        "datatype": "wages",
+        "value": 46248.5762458008,
+        "year": "2019-01-01T00:00:00"
+      },
+      {
+        "country": "Finland",
+        "datatype": "wages",
+        "value": 46229.570198901,
+        "year": "2020-01-01T00:00:00"
+      },
+      {
+        "country": "France",
+        "datatype": "wages",
+        "value": 35576.979010678,
+        "year": "1992-01-01T00:00:00"
+      },
+      {
+        "country": "France",
+        "datatype": "wages",
+        "value": 35989.3764923616,
+        "year": "1993-01-01T00:00:00"
+      },
+      {
+        "country": "France",
+        "datatype": "wages",
+        "value": 36137.6494858234,
+        "year": "1994-01-01T00:00:00"
+      },
+      {
+        "country": "France",
+        "datatype": "wages",
+        "value": 36676.7956154132,
+        "year": "1995-01-01T00:00:00"
+      },
+      {
+        "country": "France",
+        "datatype": "wages",
+        "value": 36779.1987687957,
+        "year": "1996-01-01T00:00:00"
+      },
+      {
+        "country": "France",
+        "datatype": "wages",
+        "value": 37192.511516323,
+        "year": "1997-01-01T00:00:00"
+      },
+      {
+        "country": "France",
+        "datatype": "wages",
+        "value": 37763.6773965466,
+        "year": "1998-01-01T00:00:00"
+      },
+      {
+        "country": "France",
+        "datatype": "wages",
+        "value": 38596.8540006405,
+        "year": "1999-01-01T00:00:00"
+      },
+      {
+        "country": "France",
+        "datatype": "wages",
+        "value": 38782.1155835131,
+        "year": "2000-01-01T00:00:00"
+      },
+      {
+        "country": "France",
+        "datatype": "wages",
+        "value": 39027.4067529322,
+        "year": "2001-01-01T00:00:00"
+      },
+      {
+        "country": "France",
+        "datatype": "wages",
+        "value": 40080.973866655,
+        "year": "2002-01-01T00:00:00"
+      },
+      {
+        "country": "France",
+        "datatype": "wages",
+        "value": 40405.5055288181,
+        "year": "2003-01-01T00:00:00"
+      },
+      {
+        "country": "France",
+        "datatype": "wages",
+        "value": 41068.0709646522,
+        "year": "2004-01-01T00:00:00"
+      },
+      {
+        "country": "France",
+        "datatype": "wages",
+        "value": 41561.9605502097,
+        "year": "2005-01-01T00:00:00"
+      },
+      {
+        "country": "France",
+        "datatype": "wages",
+        "value": 42027.7128210275,
+        "year": "2006-01-01T00:00:00"
+      },
+      {
+        "country": "France",
+        "datatype": "wages",
+        "value": 42184.5668291047,
+        "year": "2007-01-01T00:00:00"
+      },
+      {
+        "country": "France",
+        "datatype": "wages",
+        "value": 42102.2967323037,
+        "year": "2008-01-01T00:00:00"
+      },
+      {
+        "country": "France",
+        "datatype": "wages",
+        "value": 43441.63850086,
+        "year": "2009-01-01T00:00:00"
+      },
+      {
+        "country": "France",
+        "datatype": "wages",
+        "value": 44324.9511611263,
+        "year": "2010-01-01T00:00:00"
+      },
+      {
+        "country": "France",
+        "datatype": "wages",
+        "value": 44255.6792311367,
+        "year": "2011-01-01T00:00:00"
+      },
+      {
+        "country": "France",
+        "datatype": "wages",
+        "value": 44552.4695964852,
+        "year": "2012-01-01T00:00:00"
+      },
+      {
+        "country": "France",
+        "datatype": "wages",
+        "value": 44926.6938878833,
+        "year": "2013-01-01T00:00:00"
+      },
+      {
+        "country": "France",
+        "datatype": "wages",
+        "value": 45236.7715370061,
+        "year": "2014-01-01T00:00:00"
+      },
+      {
+        "country": "France",
+        "datatype": "wages",
+        "value": 45679.6770089977,
+        "year": "2015-01-01T00:00:00"
+      },
+      {
+        "country": "France",
+        "datatype": "wages",
+        "value": 46214.2570421327,
+        "year": "2016-01-01T00:00:00"
+      },
+      {
+        "country": "France",
+        "datatype": "wages",
+        "value": 46852.3529811014,
+        "year": "2017-01-01T00:00:00"
+      },
+      {
+        "country": "France",
+        "datatype": "wages",
+        "value": 46866.5200153424,
+        "year": "2018-01-01T00:00:00"
+      },
+      {
+        "country": "France",
+        "datatype": "wages",
+        "value": 47112.3891580859,
+        "year": "2019-01-01T00:00:00"
+      },
+      {
+        "country": "France",
+        "datatype": "wages",
+        "value": 45580.7045304337,
+        "year": "2020-01-01T00:00:00"
+      },
+      {
+        "country": "Germany",
+        "datatype": "wages",
+        "value": 42561.7646308136,
+        "year": "1992-01-01T00:00:00"
+      },
+      {
+        "country": "Germany",
+        "datatype": "wages",
+        "value": 42844.2547655193,
+        "year": "1993-01-01T00:00:00"
+      },
+      {
+        "country": "Germany",
+        "datatype": "wages",
+        "value": 42937.8809719562,
+        "year": "1994-01-01T00:00:00"
+      },
+      {
+        "country": "Germany",
+        "datatype": "wages",
+        "value": 43852.9365835218,
+        "year": "1995-01-01T00:00:00"
+      },
+      {
+        "country": "Germany",
+        "datatype": "wages",
+        "value": 44362.984969703,
+        "year": "1996-01-01T00:00:00"
+      },
+      {
+        "country": "Germany",
+        "datatype": "wages",
+        "value": 44181.0579403052,
+        "year": "1997-01-01T00:00:00"
+      },
+      {
+        "country": "Germany",
+        "datatype": "wages",
+        "value": 44722.7416990888,
+        "year": "1998-01-01T00:00:00"
+      },
+      {
+        "country": "Germany",
+        "datatype": "wages",
+        "value": 45326.9059987319,
+        "year": "1999-01-01T00:00:00"
+      },
+      {
+        "country": "Germany",
+        "datatype": "wages",
+        "value": 45583.7242601558,
+        "year": "2000-01-01T00:00:00"
+      },
+      {
+        "country": "Germany",
+        "datatype": "wages",
+        "value": 45929.7420664934,
+        "year": "2001-01-01T00:00:00"
+      },
+      {
+        "country": "Germany",
+        "datatype": "wages",
+        "value": 46206.9408845997,
+        "year": "2002-01-01T00:00:00"
+      },
+      {
+        "country": "Germany",
+        "datatype": "wages",
+        "value": 46361.3964338503,
+        "year": "2003-01-01T00:00:00"
+      },
+      {
+        "country": "Germany",
+        "datatype": "wages",
+        "value": 46363.3180368231,
+        "year": "2004-01-01T00:00:00"
+      },
+      {
+        "country": "Germany",
+        "datatype": "wages",
+        "value": 46553.2012381216,
+        "year": "2005-01-01T00:00:00"
+      },
+      {
+        "country": "Germany",
+        "datatype": "wages",
+        "value": 46546.4614941587,
+        "year": "2006-01-01T00:00:00"
+      },
+      {
+        "country": "Germany",
+        "datatype": "wages",
+        "value": 46415.4101855891,
+        "year": "2007-01-01T00:00:00"
+      },
+      {
+        "country": "Germany",
+        "datatype": "wages",
+        "value": 46632.7284690971,
+        "year": "2008-01-01T00:00:00"
+      },
+      {
+        "country": "Germany",
+        "datatype": "wages",
+        "value": 46645.9630877211,
+        "year": "2009-01-01T00:00:00"
+      },
+      {
+        "country": "Germany",
+        "datatype": "wages",
+        "value": 47054.1004687921,
+        "year": "2010-01-01T00:00:00"
+      },
+      {
+        "country": "Germany",
+        "datatype": "wages",
+        "value": 48025.5752898189,
+        "year": "2011-01-01T00:00:00"
+      },
+      {
+        "country": "Germany",
+        "datatype": "wages",
+        "value": 48682.5488749339,
+        "year": "2012-01-01T00:00:00"
+      },
+      {
+        "country": "Germany",
+        "datatype": "wages",
+        "value": 49158.7072422073,
+        "year": "2013-01-01T00:00:00"
+      },
+      {
+        "country": "Germany",
+        "datatype": "wages",
+        "value": 50001.0288195043,
+        "year": "2014-01-01T00:00:00"
+      },
+      {
+        "country": "Germany",
+        "datatype": "wages",
+        "value": 51171.5310086437,
+        "year": "2015-01-01T00:00:00"
+      },
+      {
+        "country": "Germany",
+        "datatype": "wages",
+        "value": 51901.8195564621,
+        "year": "2016-01-01T00:00:00"
+      },
+      {
+        "country": "Germany",
+        "datatype": "wages",
+        "value": 52454.1460775367,
+        "year": "2017-01-01T00:00:00"
+      },
+      {
+        "country": "Germany",
+        "datatype": "wages",
+        "value": 53220.549493405,
+        "year": "2018-01-01T00:00:00"
+      },
+      {
+        "country": "Germany",
+        "datatype": "wages",
+        "value": 54041.3564696298,
+        "year": "2019-01-01T00:00:00"
+      },
+      {
+        "country": "Germany",
+        "datatype": "wages",
+        "value": 53744.9986010753,
+        "year": "2020-01-01T00:00:00"
+      },
+      {
+        "country": "Japan",
+        "datatype": "wages",
+        "value": 37483.0802221305,
+        "year": "1992-01-01T00:00:00"
+      },
+      {
+        "country": "Japan",
+        "datatype": "wages",
+        "value": 37127.6683945077,
+        "year": "1993-01-01T00:00:00"
+      },
+      {
+        "country": "Japan",
+        "datatype": "wages",
+        "value": 37504.3097890282,
+        "year": "1994-01-01T00:00:00"
+      },
+      {
+        "country": "Japan",
+        "datatype": "wages",
+        "value": 37934.1341107667,
+        "year": "1995-01-01T00:00:00"
+      },
+      {
+        "country": "Japan",
+        "datatype": "wages",
+        "value": 38086.5946216731,
+        "year": "1996-01-01T00:00:00"
+      },
+      {
+        "country": "Japan",
+        "datatype": "wages",
+        "value": 38395.3156041899,
+        "year": "1997-01-01T00:00:00"
+      },
+      {
+        "country": "Japan",
+        "datatype": "wages",
+        "value": 38243.9754585059,
+        "year": "1998-01-01T00:00:00"
+      },
+      {
+        "country": "Japan",
+        "datatype": "wages",
+        "value": 38153.5794870025,
+        "year": "1999-01-01T00:00:00"
+      },
+      {
+        "country": "Japan",
+        "datatype": "wages",
+        "value": 38364.856589581,
+        "year": "2000-01-01T00:00:00"
+      },
+      {
+        "country": "Japan",
+        "datatype": "wages",
+        "value": 37982.378425898,
+        "year": "2001-01-01T00:00:00"
+      },
+      {
+        "country": "Japan",
+        "datatype": "wages",
+        "value": 37228.2165697485,
+        "year": "2002-01-01T00:00:00"
+      },
+      {
+        "country": "Japan",
+        "datatype": "wages",
+        "value": 37254.9208747604,
+        "year": "2003-01-01T00:00:00"
+      },
+      {
+        "country": "Japan",
+        "datatype": "wages",
+        "value": 37882.4772227691,
+        "year": "2004-01-01T00:00:00"
+      },
+      {
+        "country": "Japan",
+        "datatype": "wages",
+        "value": 38879.1583322769,
+        "year": "2005-01-01T00:00:00"
+      },
+      {
+        "country": "Japan",
+        "datatype": "wages",
+        "value": 38849.6501536857,
+        "year": "2006-01-01T00:00:00"
+      },
+      {
+        "country": "Japan",
+        "datatype": "wages",
+        "value": 38742.5243214359,
+        "year": "2007-01-01T00:00:00"
+      },
+      {
+        "country": "Japan",
+        "datatype": "wages",
+        "value": 38448.6521054355,
+        "year": "2008-01-01T00:00:00"
+      },
+      {
+        "country": "Japan",
+        "datatype": "wages",
+        "value": 37950.3401302869,
+        "year": "2009-01-01T00:00:00"
+      },
+      {
+        "country": "Japan",
+        "datatype": "wages",
+        "value": 38085.3227150022,
+        "year": "2010-01-01T00:00:00"
+      },
+      {
+        "country": "Japan",
+        "datatype": "wages",
+        "value": 38699.6924564557,
+        "year": "2011-01-01T00:00:00"
+      },
+      {
+        "country": "Japan",
+        "datatype": "wages",
+        "value": 38057.7572380073,
+        "year": "2012-01-01T00:00:00"
+      },
+      {
+        "country": "Japan",
+        "datatype": "wages",
+        "value": 38103.0661949982,
+        "year": "2013-01-01T00:00:00"
+      },
+      {
+        "country": "Japan",
+        "datatype": "wages",
+        "value": 37438.1589646497,
+        "year": "2014-01-01T00:00:00"
+      },
+      {
+        "country": "Japan",
+        "datatype": "wages",
+        "value": 37264.6607392546,
+        "year": "2015-01-01T00:00:00"
+      },
+      {
+        "country": "Japan",
+        "datatype": "wages",
+        "value": 37810.3885092352,
+        "year": "2016-01-01T00:00:00"
+      },
+      {
+        "country": "Japan",
+        "datatype": "wages",
+        "value": 37972.2553240193,
+        "year": "2017-01-01T00:00:00"
+      },
+      {
+        "country": "Japan",
+        "datatype": "wages",
+        "value": 38461.9696054671,
+        "year": "2018-01-01T00:00:00"
+      },
+      {
+        "country": "Japan",
+        "datatype": "wages",
+        "value": 39041.1371184532,
+        "year": "2019-01-01T00:00:00"
+      },
+      {
+        "country": "Japan",
+        "datatype": "wages",
+        "value": 38514.8650629664,
+        "year": "2020-01-01T00:00:00"
+      },
+      {
+        "country": "Norway",
+        "datatype": "wages",
+        "value": 32708.3086325373,
+        "year": "1992-01-01T00:00:00"
+      },
+      {
+        "country": "Norway",
+        "datatype": "wages",
+        "value": 33020.3231683716,
+        "year": "1993-01-01T00:00:00"
+      },
+      {
+        "country": "Norway",
+        "datatype": "wages",
+        "value": 33693.4446408698,
+        "year": "1994-01-01T00:00:00"
+      },
+      {
+        "country": "Norway",
+        "datatype": "wages",
+        "value": 34008.1116773249,
+        "year": "1995-01-01T00:00:00"
+      },
+      {
+        "country": "Norway",
+        "datatype": "wages",
+        "value": 35022.9778063945,
+        "year": "1996-01-01T00:00:00"
+      },
+      {
+        "country": "Norway",
+        "datatype": "wages",
+        "value": 35800.6607228073,
+        "year": "1997-01-01T00:00:00"
+      },
+      {
+        "country": "Norway",
+        "datatype": "wages",
+        "value": 37113.1920828553,
+        "year": "1998-01-01T00:00:00"
+      },
+      {
+        "country": "Norway",
+        "datatype": "wages",
+        "value": 38305.8466480395,
+        "year": "1999-01-01T00:00:00"
+      },
+      {
+        "country": "Norway",
+        "datatype": "wages",
+        "value": 38647.3115405666,
+        "year": "2000-01-01T00:00:00"
+      },
+      {
+        "country": "Norway",
+        "datatype": "wages",
+        "value": 39589.4962708671,
+        "year": "2001-01-01T00:00:00"
+      },
+      {
+        "country": "Norway",
+        "datatype": "wages",
+        "value": 41235.5600866555,
+        "year": "2002-01-01T00:00:00"
+      },
+      {
+        "country": "Norway",
+        "datatype": "wages",
+        "value": 41789.0034194485,
+        "year": "2003-01-01T00:00:00"
+      },
+      {
+        "country": "Norway",
+        "datatype": "wages",
+        "value": 43170.2950001049,
+        "year": "2004-01-01T00:00:00"
+      },
+      {
+        "country": "Norway",
+        "datatype": "wages",
+        "value": 44438.1478169816,
+        "year": "2005-01-01T00:00:00"
+      },
+      {
+        "country": "Norway",
+        "datatype": "wages",
+        "value": 46254.7534029092,
+        "year": "2006-01-01T00:00:00"
+      },
+      {
+        "country": "Norway",
+        "datatype": "wages",
+        "value": 48334.8041381789,
+        "year": "2007-01-01T00:00:00"
+      },
+      {
+        "country": "Norway",
+        "datatype": "wages",
+        "value": 49404.325369661,
+        "year": "2008-01-01T00:00:00"
+      },
+      {
+        "country": "Norway",
+        "datatype": "wages",
+        "value": 49918.71748337,
+        "year": "2009-01-01T00:00:00"
+      },
+      {
+        "country": "Norway",
+        "datatype": "wages",
+        "value": 50585.6498312246,
+        "year": "2010-01-01T00:00:00"
+      },
+      {
+        "country": "Norway",
+        "datatype": "wages",
+        "value": 52346.751164501,
+        "year": "2011-01-01T00:00:00"
+      },
+      {
+        "country": "Norway",
+        "datatype": "wages",
+        "value": 53776.6554149845,
+        "year": "2012-01-01T00:00:00"
+      },
+      {
+        "country": "Norway",
+        "datatype": "wages",
+        "value": 54852.5811702615,
+        "year": "2013-01-01T00:00:00"
+      },
+      {
+        "country": "Norway",
+        "datatype": "wages",
+        "value": 55120.5236007334,
+        "year": "2014-01-01T00:00:00"
+      },
+      {
+        "country": "Norway",
+        "datatype": "wages",
+        "value": 55403.9267886579,
+        "year": "2015-01-01T00:00:00"
+      },
+      {
+        "country": "Norway",
+        "datatype": "wages",
+        "value": 54224.1509763159,
+        "year": "2016-01-01T00:00:00"
+      },
+      {
+        "country": "Norway",
+        "datatype": "wages",
+        "value": 54117.1054195178,
+        "year": "2017-01-01T00:00:00"
+      },
+      {
+        "country": "Norway",
+        "datatype": "wages",
+        "value": 54690.6441797876,
+        "year": "2018-01-01T00:00:00"
+      },
+      {
+        "country": "Norway",
+        "datatype": "wages",
+        "value": 55752.92248311,
+        "year": "2019-01-01T00:00:00"
+      },
+      {
+        "country": "Norway",
+        "datatype": "wages",
+        "value": 55779.8295229485,
+        "year": "2020-01-01T00:00:00"
+      },
+      {
+        "country": "Sweden",
+        "datatype": "wages",
+        "value": 28326.6692620211,
+        "year": "1992-01-01T00:00:00"
+      },
+      {
+        "country": "Sweden",
+        "datatype": "wages",
+        "value": 27955.5176121195,
+        "year": "1993-01-01T00:00:00"
+      },
+      {
+        "country": "Sweden",
+        "datatype": "wages",
+        "value": 28635.7405132597,
+        "year": "1994-01-01T00:00:00"
+      },
+      {
+        "country": "Sweden",
+        "datatype": "wages",
+        "value": 28696.1256416967,
+        "year": "1995-01-01T00:00:00"
+      },
+      {
+        "country": "Sweden",
+        "datatype": "wages",
+        "value": 30409.9751730569,
+        "year": "1996-01-01T00:00:00"
+      },
+      {
+        "country": "Sweden",
+        "datatype": "wages",
+        "value": 31605.1888243566,
+        "year": "1997-01-01T00:00:00"
+      },
+      {
+        "country": "Sweden",
+        "datatype": "wages",
+        "value": 32653.3016999684,
+        "year": "1998-01-01T00:00:00"
+      },
+      {
+        "country": "Sweden",
+        "datatype": "wages",
+        "value": 33329.4125656562,
+        "year": "1999-01-01T00:00:00"
+      },
+      {
+        "country": "Sweden",
+        "datatype": "wages",
+        "value": 34388.9484187077,
+        "year": "2000-01-01T00:00:00"
+      },
+      {
+        "country": "Sweden",
+        "datatype": "wages",
+        "value": 34796.8879758431,
+        "year": "2001-01-01T00:00:00"
+      },
+      {
+        "country": "Sweden",
+        "datatype": "wages",
+        "value": 35251.8533426745,
+        "year": "2002-01-01T00:00:00"
+      },
+      {
+        "country": "Sweden",
+        "datatype": "wages",
+        "value": 35555.7494602559,
+        "year": "2003-01-01T00:00:00"
+      },
+      {
+        "country": "Sweden",
+        "datatype": "wages",
+        "value": 36723.844979794,
+        "year": "2004-01-01T00:00:00"
+      },
+      {
+        "country": "Sweden",
+        "datatype": "wages",
+        "value": 37649.7667406336,
+        "year": "2005-01-01T00:00:00"
+      },
+      {
+        "country": "Sweden",
+        "datatype": "wages",
+        "value": 38701.2384294153,
+        "year": "2006-01-01T00:00:00"
+      },
+      {
+        "country": "Sweden",
+        "datatype": "wages",
+        "value": 40054.091743044,
+        "year": "2007-01-01T00:00:00"
+      },
+      {
+        "country": "Sweden",
+        "datatype": "wages",
+        "value": 40860.7815199667,
+        "year": "2008-01-01T00:00:00"
+      },
+      {
+        "country": "Sweden",
+        "datatype": "wages",
+        "value": 41016.9656550011,
+        "year": "2009-01-01T00:00:00"
+      },
+      {
+        "country": "Sweden",
+        "datatype": "wages",
+        "value": 41533.8891289532,
+        "year": "2010-01-01T00:00:00"
+      },
+      {
+        "country": "Sweden",
+        "datatype": "wages",
+        "value": 42160.8183463129,
+        "year": "2011-01-01T00:00:00"
+      },
+      {
+        "country": "Sweden",
+        "datatype": "wages",
+        "value": 43079.8807886723,
+        "year": "2012-01-01T00:00:00"
+      },
+      {
+        "country": "Sweden",
+        "datatype": "wages",
+        "value": 43552.2269056241,
+        "year": "2013-01-01T00:00:00"
+      },
+      {
+        "country": "Sweden",
+        "datatype": "wages",
+        "value": 44066.0424889516,
+        "year": "2014-01-01T00:00:00"
+      },
+      {
+        "country": "Sweden",
+        "datatype": "wages",
+        "value": 44719.090412452,
+        "year": "2015-01-01T00:00:00"
+      },
+      {
+        "country": "Sweden",
+        "datatype": "wages",
+        "value": 45423.0343565982,
+        "year": "2016-01-01T00:00:00"
+      },
+      {
+        "country": "Sweden",
+        "datatype": "wages",
+        "value": 45680.5134360005,
+        "year": "2017-01-01T00:00:00"
+      },
+      {
+        "country": "Sweden",
+        "datatype": "wages",
+        "value": 45916.5839424171,
+        "year": "2018-01-01T00:00:00"
+      },
+      {
+        "country": "Sweden",
+        "datatype": "wages",
+        "value": 46417.9753348127,
+        "year": "2019-01-01T00:00:00"
+      },
+      {
+        "country": "Sweden",
+        "datatype": "wages",
+        "value": 47020.4898878129,
+        "year": "2020-01-01T00:00:00"
+      },
+      {
+        "country": "United Kingdom",
+        "datatype": "wages",
+        "value": 33306.0432126482,
+        "year": "1992-01-01T00:00:00"
+      },
+      {
+        "country": "United Kingdom",
+        "datatype": "wages",
+        "value": 33861.2255826436,
+        "year": "1993-01-01T00:00:00"
+      },
+      {
+        "country": "United Kingdom",
+        "datatype": "wages",
+        "value": 34466.7674894617,
+        "year": "1994-01-01T00:00:00"
+      },
+      {
+        "country": "United Kingdom",
+        "datatype": "wages",
+        "value": 34493.49204621,
+        "year": "1995-01-01T00:00:00"
+      },
+      {
+        "country": "United Kingdom",
+        "datatype": "wages",
+        "value": 34478.1705878335,
+        "year": "1996-01-01T00:00:00"
+      },
+      {
+        "country": "United Kingdom",
+        "datatype": "wages",
+        "value": 35830.1647083533,
+        "year": "1997-01-01T00:00:00"
+      },
+      {
+        "country": "United Kingdom",
+        "datatype": "wages",
+        "value": 36453.8173807945,
+        "year": "1998-01-01T00:00:00"
+      },
+      {
+        "country": "United Kingdom",
+        "datatype": "wages",
+        "value": 38445.6171282191,
+        "year": "1999-01-01T00:00:00"
+      },
+      {
+        "country": "United Kingdom",
+        "datatype": "wages",
+        "value": 40206.6024960548,
+        "year": "2000-01-01T00:00:00"
+      },
+      {
+        "country": "United Kingdom",
+        "datatype": "wages",
+        "value": 41898.2782726161,
+        "year": "2001-01-01T00:00:00"
+      },
+      {
+        "country": "United Kingdom",
+        "datatype": "wages",
+        "value": 42571.4758568034,
+        "year": "2002-01-01T00:00:00"
+      },
+      {
+        "country": "United Kingdom",
+        "datatype": "wages",
+        "value": 43830.509995676,
+        "year": "2003-01-01T00:00:00"
+      },
+      {
+        "country": "United Kingdom",
+        "datatype": "wages",
+        "value": 45195.1809081212,
+        "year": "2004-01-01T00:00:00"
+      },
+      {
+        "country": "United Kingdom",
+        "datatype": "wages",
+        "value": 45368.5410774796,
+        "year": "2005-01-01T00:00:00"
+      },
+      {
+        "country": "United Kingdom",
+        "datatype": "wages",
+        "value": 46546.2850599137,
+        "year": "2006-01-01T00:00:00"
+      },
+      {
+        "country": "United Kingdom",
+        "datatype": "wages",
+        "value": 47824.786055827,
+        "year": "2007-01-01T00:00:00"
+      },
+      {
+        "country": "United Kingdom",
+        "datatype": "wages",
+        "value": 46686.9062248829,
+        "year": "2008-01-01T00:00:00"
+      },
+      {
+        "country": "United Kingdom",
+        "datatype": "wages",
+        "value": 46884.351280431,
+        "year": "2009-01-01T00:00:00"
+      },
+      {
+        "country": "United Kingdom",
+        "datatype": "wages",
+        "value": 46863.4384482268,
+        "year": "2010-01-01T00:00:00"
+      },
+      {
+        "country": "United Kingdom",
+        "datatype": "wages",
+        "value": 46035.8518125816,
+        "year": "2011-01-01T00:00:00"
+      },
+      {
+        "country": "United Kingdom",
+        "datatype": "wages",
+        "value": 45454.71128928,
+        "year": "2012-01-01T00:00:00"
+      },
+      {
+        "country": "United Kingdom",
+        "datatype": "wages",
+        "value": 46052.6231779979,
+        "year": "2013-01-01T00:00:00"
+      },
+      {
+        "country": "United Kingdom",
+        "datatype": "wages",
+        "value": 46155.8151440147,
+        "year": "2014-01-01T00:00:00"
+      },
+      {
+        "country": "United Kingdom",
+        "datatype": "wages",
+        "value": 46646.9164350875,
+        "year": "2015-01-01T00:00:00"
+      },
+      {
+        "country": "United Kingdom",
+        "datatype": "wages",
+        "value": 47180.7786047186,
+        "year": "2016-01-01T00:00:00"
+      },
+      {
+        "country": "United Kingdom",
+        "datatype": "wages",
+        "value": 47145.5619187673,
+        "year": "2017-01-01T00:00:00"
+      },
+      {
+        "country": "United Kingdom",
+        "datatype": "wages",
+        "value": 47229.2283063641,
+        "year": "2018-01-01T00:00:00"
+      },
+      {
+        "country": "United Kingdom",
+        "datatype": "wages",
+        "value": 47936.6285671556,
+        "year": "2019-01-01T00:00:00"
+      },
+      {
+        "country": "United Kingdom",
+        "datatype": "wages",
+        "value": 47147.2016194233,
+        "year": "2020-01-01T00:00:00"
+      },
+      {
+        "country": "United States",
+        "datatype": "wages",
+        "value": 48389.432518019,
+        "year": "1992-01-01T00:00:00"
+      },
+      {
+        "country": "United States",
+        "datatype": "wages",
+        "value": 48111.5691040974,
+        "year": "1993-01-01T00:00:00"
+      },
+      {
+        "country": "United States",
+        "datatype": "wages",
+        "value": 47926.5702979932,
+        "year": "1994-01-01T00:00:00"
+      },
+      {
+        "country": "United States",
+        "datatype": "wages",
+        "value": 48205.5663224452,
+        "year": "1995-01-01T00:00:00"
+      },
+      {
+        "country": "United States",
+        "datatype": "wages",
+        "value": 48904.4253957518,
+        "year": "1996-01-01T00:00:00"
+      },
+      {
+        "country": "United States",
+        "datatype": "wages",
+        "value": 50119.1140747133,
+        "year": "1997-01-01T00:00:00"
+      },
+      {
+        "country": "United States",
+        "datatype": "wages",
+        "value": 52182.1733087712,
+        "year": "1998-01-01T00:00:00"
+      },
+      {
+        "country": "United States",
+        "datatype": "wages",
+        "value": 53548.6332092189,
+        "year": "1999-01-01T00:00:00"
+      },
+      {
+        "country": "United States",
+        "datatype": "wages",
+        "value": 55365.7025952572,
+        "year": "2000-01-01T00:00:00"
+      },
+      {
+        "country": "United States",
+        "datatype": "wages",
+        "value": 55834.5992657734,
+        "year": "2001-01-01T00:00:00"
+      },
+      {
+        "country": "United States",
+        "datatype": "wages",
+        "value": 56274.6593658597,
+        "year": "2002-01-01T00:00:00"
+      },
+      {
+        "country": "United States",
+        "datatype": "wages",
+        "value": 56965.5637217267,
+        "year": "2003-01-01T00:00:00"
+      },
+      {
+        "country": "United States",
+        "datatype": "wages",
+        "value": 58023.4299368342,
+        "year": "2004-01-01T00:00:00"
+      },
+      {
+        "country": "United States",
+        "datatype": "wages",
+        "value": 58092.3516733398,
+        "year": "2005-01-01T00:00:00"
+      },
+      {
+        "country": "United States",
+        "datatype": "wages",
+        "value": 59013.8598788514,
+        "year": "2006-01-01T00:00:00"
+      },
+      {
+        "country": "United States",
+        "datatype": "wages",
+        "value": 60187.9847451486,
+        "year": "2007-01-01T00:00:00"
+      },
+      {
+        "country": "United States",
+        "datatype": "wages",
+        "value": 59986.2658883191,
+        "year": "2008-01-01T00:00:00"
+      },
+      {
+        "country": "United States",
+        "datatype": "wages",
+        "value": 60471.1085097494,
+        "year": "2009-01-01T00:00:00"
+      },
+      {
+        "country": "United States",
+        "datatype": "wages",
+        "value": 61047.8742268296,
+        "year": "2010-01-01T00:00:00"
+      },
+      {
+        "country": "United States",
+        "datatype": "wages",
+        "value": 61131.6800040717,
+        "year": "2011-01-01T00:00:00"
+      },
+      {
+        "country": "United States",
+        "datatype": "wages",
+        "value": 61634.2010319128,
+        "year": "2012-01-01T00:00:00"
+      },
+      {
+        "country": "United States",
+        "datatype": "wages",
+        "value": 61346.9094055764,
+        "year": "2013-01-01T00:00:00"
+      },
+      {
+        "country": "United States",
+        "datatype": "wages",
+        "value": 62263.4103581447,
+        "year": "2014-01-01T00:00:00"
+      },
+      {
+        "country": "United States",
+        "datatype": "wages",
+        "value": 63844.5557683489,
+        "year": "2015-01-01T00:00:00"
+      },
+      {
+        "country": "United States",
+        "datatype": "wages",
+        "value": 63941.8570447087,
+        "year": "2016-01-01T00:00:00"
+      },
+      {
+        "country": "United States",
+        "datatype": "wages",
+        "value": 64618.4522648294,
+        "year": "2017-01-01T00:00:00"
+      },
+      {
+        "country": "United States",
+        "datatype": "wages",
+        "value": 65302.9401423,
+        "year": "2018-01-01T00:00:00"
+      },
+      {
+        "country": "United States",
+        "datatype": "wages",
+        "value": 66382.5055522274,
+        "year": "2019-01-01T00:00:00"
+      },
+      {
+        "country": "United States",
+        "datatype": "wages",
+        "value": 69391.8064217965,
+        "year": "2020-01-01T00:00:00"
+      },
+      {
+        "country": "Iceland",
+        "datatype": "wages",
+        "value": 42470.6297430284,
+        "year": "1992-01-01T00:00:00"
+      },
+      {
+        "country": "Iceland",
+        "datatype": "wages",
+        "value": 40225.7949525325,
+        "year": "1993-01-01T00:00:00"
+      },
+      {
+        "country": "Iceland",
+        "datatype": "wages",
+        "value": 41035.48473325,
+        "year": "1994-01-01T00:00:00"
+      },
+      {
+        "country": "Iceland",
+        "datatype": "wages",
+        "value": 42023.8585469504,
+        "year": "1995-01-01T00:00:00"
+      },
+      {
+        "country": "Iceland",
+        "datatype": "wages",
+        "value": 43355.826497965,
+        "year": "1996-01-01T00:00:00"
+      },
+      {
+        "country": "Iceland",
+        "datatype": "wages",
+        "value": 45194.7254758201,
+        "year": "1997-01-01T00:00:00"
+      },
+      {
+        "country": "Iceland",
+        "datatype": "wages",
+        "value": 49877.2209216982,
+        "year": "1998-01-01T00:00:00"
+      },
+      {
+        "country": "Iceland",
+        "datatype": "wages",
+        "value": 52210.1644555739,
+        "year": "1999-01-01T00:00:00"
+      },
+      {
+        "country": "Iceland",
+        "datatype": "wages",
+        "value": 53810.3437248817,
+        "year": "2000-01-01T00:00:00"
+      },
+      {
+        "country": "Iceland",
+        "datatype": "wages",
+        "value": 53368.731465813,
+        "year": "2001-01-01T00:00:00"
+      },
+      {
+        "country": "Iceland",
+        "datatype": "wages",
+        "value": 54902.6276430351,
+        "year": "2002-01-01T00:00:00"
+      },
+      {
+        "country": "Iceland",
+        "datatype": "wages",
+        "value": 53534.4376803548,
+        "year": "2003-01-01T00:00:00"
+      },
+      {
+        "country": "Iceland",
+        "datatype": "wages",
+        "value": 56828.0159623286,
+        "year": "2004-01-01T00:00:00"
+      },
+      {
+        "country": "Iceland",
+        "datatype": "wages",
+        "value": 61187.4395544976,
+        "year": "2005-01-01T00:00:00"
+      },
+      {
+        "country": "Iceland",
+        "datatype": "wages",
+        "value": 64423.8171909718,
+        "year": "2006-01-01T00:00:00"
+      },
+      {
+        "country": "Iceland",
+        "datatype": "wages",
+        "value": 66350.4674888443,
+        "year": "2007-01-01T00:00:00"
+      },
+      {
+        "country": "Iceland",
+        "datatype": "wages",
+        "value": 58829.1570594322,
+        "year": "2008-01-01T00:00:00"
+      },
+      {
+        "country": "Iceland",
+        "datatype": "wages",
+        "value": 49776.7731139144,
+        "year": "2009-01-01T00:00:00"
+      },
+      {
+        "country": "Iceland",
+        "datatype": "wages",
+        "value": 51234.3670935655,
+        "year": "2010-01-01T00:00:00"
+      },
+      {
+        "country": "Iceland",
+        "datatype": "wages",
+        "value": 53452.4025297103,
+        "year": "2011-01-01T00:00:00"
+      },
+      {
+        "country": "Iceland",
+        "datatype": "wages",
+        "value": 53136.7974672545,
+        "year": "2012-01-01T00:00:00"
+      },
+      {
+        "country": "Iceland",
+        "datatype": "wages",
+        "value": 53965.5749004533,
+        "year": "2013-01-01T00:00:00"
+      },
+      {
+        "country": "Iceland",
+        "datatype": "wages",
+        "value": 54735.9069150361,
+        "year": "2014-01-01T00:00:00"
+      },
+      {
+        "country": "Iceland",
+        "datatype": "wages",
+        "value": 58376.5435915252,
+        "year": "2015-01-01T00:00:00"
+      },
+      {
+        "country": "Iceland",
+        "datatype": "wages",
+        "value": 62949.0161045306,
+        "year": "2016-01-01T00:00:00"
+      },
+      {
+        "country": "Iceland",
+        "datatype": "wages",
+        "value": 69050.6369122972,
+        "year": "2017-01-01T00:00:00"
+      },
+      {
+        "country": "Iceland",
+        "datatype": "wages",
+        "value": 72465.7719215692,
+        "year": "2018-01-01T00:00:00"
+      },
+      {
+        "country": "Iceland",
+        "datatype": "wages",
+        "value": 70391.1575943075,
+        "year": "2019-01-01T00:00:00"
+      },
+      {
+        "country": "Iceland",
+        "datatype": "wages",
+        "value": 67488.0131063208,
+        "year": "2020-01-01T00:00:00"
+      }
+    ],
+    "data-2b7d48bbca1d5a38e7cdd90788398172": [
+      {
+        "country": "Denmark",
+        "datatype": "hours",
+        "value": 1452.0,
+        "year": "1992-01-01T00:00:00"
+      },
+      {
+        "country": "Denmark",
+        "datatype": "hours",
+        "value": 1449.0,
+        "year": "1993-01-01T00:00:00"
+      },
+      {
+        "country": "Denmark",
+        "datatype": "hours",
+        "value": 1407.0,
+        "year": "1994-01-01T00:00:00"
+      },
+      {
+        "country": "Denmark",
+        "datatype": "hours",
+        "value": 1419.0,
+        "year": "1995-01-01T00:00:00"
+      },
+      {
+        "country": "Denmark",
+        "datatype": "hours",
+        "value": 1412.0,
+        "year": "1996-01-01T00:00:00"
+      },
+      {
+        "country": "Denmark",
+        "datatype": "hours",
+        "value": 1428.0,
+        "year": "1997-01-01T00:00:00"
+      },
+      {
+        "country": "Denmark",
+        "datatype": "hours",
+        "value": 1441.0,
+        "year": "1998-01-01T00:00:00"
+      },
+      {
+        "country": "Denmark",
+        "datatype": "hours",
+        "value": 1456.0,
+        "year": "1999-01-01T00:00:00"
+      },
+      {
+        "country": "Denmark",
+        "datatype": "hours",
+        "value": 1466.0,
+        "year": "2000-01-01T00:00:00"
+      },
+      {
+        "country": "Denmark",
+        "datatype": "hours",
+        "value": 1469.0,
+        "year": "2001-01-01T00:00:00"
+      },
+      {
+        "country": "Denmark",
+        "datatype": "hours",
+        "value": 1463.0,
+        "year": "2002-01-01T00:00:00"
+      },
+      {
+        "country": "Denmark",
+        "datatype": "hours",
+        "value": 1458.0,
+        "year": "2003-01-01T00:00:00"
+      },
+      {
+        "country": "Denmark",
+        "datatype": "hours",
+        "value": 1458.0,
+        "year": "2004-01-01T00:00:00"
+      },
+      {
+        "country": "Denmark",
+        "datatype": "hours",
+        "value": 1451.0,
+        "year": "2005-01-01T00:00:00"
+      },
+      {
+        "country": "Denmark",
+        "datatype": "hours",
+        "value": 1456.0,
+        "year": "2006-01-01T00:00:00"
+      },
+      {
+        "country": "Denmark",
+        "datatype": "hours",
+        "value": 1433.0,
+        "year": "2007-01-01T00:00:00"
+      },
+      {
+        "country": "Denmark",
+        "datatype": "hours",
+        "value": 1430.0,
+        "year": "2008-01-01T00:00:00"
+      },
+      {
+        "country": "Denmark",
+        "datatype": "hours",
+        "value": 1417.0,
+        "year": "2009-01-01T00:00:00"
+      },
+      {
+        "country": "Denmark",
+        "datatype": "hours",
+        "value": 1422.0,
+        "year": "2010-01-01T00:00:00"
+      },
+      {
+        "country": "Denmark",
+        "datatype": "hours",
+        "value": 1437.0,
+        "year": "2011-01-01T00:00:00"
+      },
+      {
+        "country": "Denmark",
+        "datatype": "hours",
+        "value": 1423.0,
+        "year": "2012-01-01T00:00:00"
+      },
+      {
+        "country": "Denmark",
+        "datatype": "hours",
+        "value": 1426.0,
+        "year": "2013-01-01T00:00:00"
+      },
+      {
+        "country": "Denmark",
+        "datatype": "hours",
+        "value": 1414.0,
+        "year": "2014-01-01T00:00:00"
+      },
+      {
+        "country": "Denmark",
+        "datatype": "hours",
+        "value": 1407.0,
+        "year": "2015-01-01T00:00:00"
+      },
+      {
+        "country": "Denmark",
+        "datatype": "hours",
+        "value": 1412.0,
+        "year": "2016-01-01T00:00:00"
+      },
+      {
+        "country": "Denmark",
+        "datatype": "hours",
+        "value": 1404.0,
+        "year": "2017-01-01T00:00:00"
+      },
+      {
+        "country": "Denmark",
+        "datatype": "hours",
+        "value": 1381.0,
+        "year": "2018-01-01T00:00:00"
+      },
+      {
+        "country": "Denmark",
+        "datatype": "hours",
+        "value": 1381.0,
+        "year": "2019-01-01T00:00:00"
+      },
+      {
+        "country": "Denmark",
+        "datatype": "hours",
+        "value": 1346.0,
+        "year": "2020-01-01T00:00:00"
+      },
+      {
+        "country": "Finland",
+        "datatype": "hours",
+        "value": 1652.0,
+        "year": "1992-01-01T00:00:00"
+      },
+      {
+        "country": "Finland",
+        "datatype": "hours",
+        "value": 1651.0,
+        "year": "1993-01-01T00:00:00"
+      },
+      {
+        "country": "Finland",
+        "datatype": "hours",
+        "value": 1671.0,
+        "year": "1994-01-01T00:00:00"
+      },
+      {
+        "country": "Finland",
+        "datatype": "hours",
+        "value": 1677.0,
+        "year": "1995-01-01T00:00:00"
+      },
+      {
+        "country": "Finland",
+        "datatype": "hours",
+        "value": 1675.0,
+        "year": "1996-01-01T00:00:00"
+      },
+      {
+        "country": "Finland",
+        "datatype": "hours",
+        "value": 1671.0,
+        "year": "1997-01-01T00:00:00"
+      },
+      {
+        "country": "Finland",
+        "datatype": "hours",
+        "value": 1661.0,
+        "year": "1998-01-01T00:00:00"
+      },
+      {
+        "country": "Finland",
+        "datatype": "hours",
+        "value": 1661.0,
+        "year": "1999-01-01T00:00:00"
+      },
+      {
+        "country": "Finland",
+        "datatype": "hours",
+        "value": 1650.0,
+        "year": "2000-01-01T00:00:00"
+      },
+      {
+        "country": "Finland",
+        "datatype": "hours",
+        "value": 1636.0,
+        "year": "2001-01-01T00:00:00"
+      },
+      {
+        "country": "Finland",
+        "datatype": "hours",
+        "value": 1628.0,
+        "year": "2002-01-01T00:00:00"
+      },
+      {
+        "country": "Finland",
+        "datatype": "hours",
+        "value": 1623.0,
+        "year": "2003-01-01T00:00:00"
+      },
+      {
+        "country": "Finland",
+        "datatype": "hours",
+        "value": 1624.0,
+        "year": "2004-01-01T00:00:00"
+      },
+      {
+        "country": "Finland",
+        "datatype": "hours",
+        "value": 1613.0,
+        "year": "2005-01-01T00:00:00"
+      },
+      {
+        "country": "Finland",
+        "datatype": "hours",
+        "value": 1608.0,
+        "year": "2006-01-01T00:00:00"
+      },
+      {
+        "country": "Finland",
+        "datatype": "hours",
+        "value": 1605.0,
+        "year": "2007-01-01T00:00:00"
+      },
+      {
+        "country": "Finland",
+        "datatype": "hours",
+        "value": 1601.0,
+        "year": "2008-01-01T00:00:00"
+      },
+      {
+        "country": "Finland",
+        "datatype": "hours",
+        "value": 1580.0,
+        "year": "2009-01-01T00:00:00"
+      },
+      {
+        "country": "Finland",
+        "datatype": "hours",
+        "value": 1585.0,
+        "year": "2010-01-01T00:00:00"
+      },
+      {
+        "country": "Finland",
+        "datatype": "hours",
+        "value": 1578.0,
+        "year": "2011-01-01T00:00:00"
+      },
+      {
+        "country": "Finland",
+        "datatype": "hours",
+        "value": 1568.0,
+        "year": "2012-01-01T00:00:00"
+      },
+      {
+        "country": "Finland",
+        "datatype": "hours",
+        "value": 1560.0,
+        "year": "2013-01-01T00:00:00"
+      },
+      {
+        "country": "Finland",
+        "datatype": "hours",
+        "value": 1558.0,
+        "year": "2014-01-01T00:00:00"
+      },
+      {
+        "country": "Finland",
+        "datatype": "hours",
+        "value": 1555.0,
+        "year": "2015-01-01T00:00:00"
+      },
+      {
+        "country": "Finland",
+        "datatype": "hours",
+        "value": 1555.0,
+        "year": "2016-01-01T00:00:00"
+      },
+      {
+        "country": "Finland",
+        "datatype": "hours",
+        "value": 1549.0,
+        "year": "2017-01-01T00:00:00"
+      },
+      {
+        "country": "Finland",
+        "datatype": "hours",
+        "value": 1546.0,
+        "year": "2018-01-01T00:00:00"
+      },
+      {
+        "country": "Finland",
+        "datatype": "hours",
+        "value": 1539.0,
+        "year": "2019-01-01T00:00:00"
+      },
+      {
+        "country": "Finland",
+        "datatype": "hours",
+        "value": 1531.0,
+        "year": "2020-01-01T00:00:00"
+      },
+      {
+        "country": "France",
+        "datatype": "hours",
+        "value": 1635.0,
+        "year": "1992-01-01T00:00:00"
+      },
+      {
+        "country": "France",
+        "datatype": "hours",
+        "value": 1627.0,
+        "year": "1993-01-01T00:00:00"
+      },
+      {
+        "country": "France",
+        "datatype": "hours",
+        "value": 1623.0,
+        "year": "1994-01-01T00:00:00"
+      },
+      {
+        "country": "France",
+        "datatype": "hours",
+        "value": 1601.0,
+        "year": "1995-01-01T00:00:00"
+      },
+      {
+        "country": "France",
+        "datatype": "hours",
+        "value": 1597.0,
+        "year": "1996-01-01T00:00:00"
+      },
+      {
+        "country": "France",
+        "datatype": "hours",
+        "value": 1596.0,
+        "year": "1997-01-01T00:00:00"
+      },
+      {
+        "country": "France",
+        "datatype": "hours",
+        "value": 1585.0,
+        "year": "1998-01-01T00:00:00"
+      },
+      {
+        "country": "France",
+        "datatype": "hours",
+        "value": 1578.0,
+        "year": "1999-01-01T00:00:00"
+      },
+      {
+        "country": "France",
+        "datatype": "hours",
+        "value": 1558.0,
+        "year": "2000-01-01T00:00:00"
+      },
+      {
+        "country": "France",
+        "datatype": "hours",
+        "value": 1538.0,
+        "year": "2001-01-01T00:00:00"
+      },
+      {
+        "country": "France",
+        "datatype": "hours",
+        "value": 1504.0,
+        "year": "2002-01-01T00:00:00"
+      },
+      {
+        "country": "France",
+        "datatype": "hours",
+        "value": 1507.0,
+        "year": "2003-01-01T00:00:00"
+      },
+      {
+        "country": "France",
+        "datatype": "hours",
+        "value": 1531.0,
+        "year": "2004-01-01T00:00:00"
+      },
+      {
+        "country": "France",
+        "datatype": "hours",
+        "value": 1532.0,
+        "year": "2005-01-01T00:00:00"
+      },
+      {
+        "country": "France",
+        "datatype": "hours",
+        "value": 1515.0,
+        "year": "2006-01-01T00:00:00"
+      },
+      {
+        "country": "France",
+        "datatype": "hours",
+        "value": 1537.0,
+        "year": "2007-01-01T00:00:00"
+      },
+      {
+        "country": "France",
+        "datatype": "hours",
+        "value": 1543.0,
+        "year": "2008-01-01T00:00:00"
+      },
+      {
+        "country": "France",
+        "datatype": "hours",
+        "value": 1531.0,
+        "year": "2009-01-01T00:00:00"
+      },
+      {
+        "country": "France",
+        "datatype": "hours",
+        "value": 1540.0,
+        "year": "2010-01-01T00:00:00"
+      },
+      {
+        "country": "France",
+        "datatype": "hours",
+        "value": 1546.0,
+        "year": "2011-01-01T00:00:00"
+      },
+      {
+        "country": "France",
+        "datatype": "hours",
+        "value": 1541.0,
+        "year": "2012-01-01T00:00:00"
+      },
+      {
+        "country": "France",
+        "datatype": "hours",
+        "value": 1526.0,
+        "year": "2013-01-01T00:00:00"
+      },
+      {
+        "country": "France",
+        "datatype": "hours",
+        "value": 1518.0,
+        "year": "2014-01-01T00:00:00"
+      },
+      {
+        "country": "France",
+        "datatype": "hours",
+        "value": 1519.0,
+        "year": "2015-01-01T00:00:00"
+      },
+      {
+        "country": "France",
+        "datatype": "hours",
+        "value": 1522.0,
+        "year": "2016-01-01T00:00:00"
+      },
+      {
+        "country": "France",
+        "datatype": "hours",
+        "value": 1508.0,
+        "year": "2017-01-01T00:00:00"
+      },
+      {
+        "country": "France",
+        "datatype": "hours",
+        "value": 1514.0,
+        "year": "2018-01-01T00:00:00"
+      },
+      {
+        "country": "France",
+        "datatype": "hours",
+        "value": 1511.0,
+        "year": "2019-01-01T00:00:00"
+      },
+      {
+        "country": "France",
+        "datatype": "hours",
+        "value": 1402.0,
+        "year": "2020-01-01T00:00:00"
+      },
+      {
+        "country": "Germany",
+        "datatype": "hours",
+        "value": 1565.1,
+        "year": "1992-01-01T00:00:00"
+      },
+      {
+        "country": "Germany",
+        "datatype": "hours",
+        "value": 1540.2,
+        "year": "1993-01-01T00:00:00"
+      },
+      {
+        "country": "Germany",
+        "datatype": "hours",
+        "value": 1536.6,
+        "year": "1994-01-01T00:00:00"
+      },
+      {
+        "country": "Germany",
+        "datatype": "hours",
+        "value": 1530.6,
+        "year": "1995-01-01T00:00:00"
+      },
+      {
+        "country": "Germany",
+        "datatype": "hours",
+        "value": 1516.8,
+        "year": "1996-01-01T00:00:00"
+      },
+      {
+        "country": "Germany",
+        "datatype": "hours",
+        "value": 1507.7,
+        "year": "1997-01-01T00:00:00"
+      },
+      {
+        "country": "Germany",
+        "datatype": "hours",
+        "value": 1504.5,
+        "year": "1998-01-01T00:00:00"
+      },
+      {
+        "country": "Germany",
+        "datatype": "hours",
+        "value": 1491.5,
+        "year": "1999-01-01T00:00:00"
+      },
+      {
+        "country": "Germany",
+        "datatype": "hours",
+        "value": 1465.9,
+        "year": "2000-01-01T00:00:00"
+      },
+      {
+        "country": "Germany",
+        "datatype": "hours",
+        "value": 1458.2,
+        "year": "2001-01-01T00:00:00"
+      },
+      {
+        "country": "Germany",
+        "datatype": "hours",
+        "value": 1448.9,
+        "year": "2002-01-01T00:00:00"
+      },
+      {
+        "country": "Germany",
+        "datatype": "hours",
+        "value": 1443.4,
+        "year": "2003-01-01T00:00:00"
+      },
+      {
+        "country": "Germany",
+        "datatype": "hours",
+        "value": 1442.6,
+        "year": "2004-01-01T00:00:00"
+      },
+      {
+        "country": "Germany",
+        "datatype": "hours",
+        "value": 1432.4,
+        "year": "2005-01-01T00:00:00"
+      },
+      {
+        "country": "Germany",
+        "datatype": "hours",
+        "value": 1453.2,
+        "year": "2006-01-01T00:00:00"
+      },
+      {
+        "country": "Germany",
+        "datatype": "hours",
+        "value": 1454.1,
+        "year": "2007-01-01T00:00:00"
+      },
+      {
+        "country": "Germany",
+        "datatype": "hours",
+        "value": 1447.3,
+        "year": "2008-01-01T00:00:00"
+      },
+      {
+        "country": "Germany",
+        "datatype": "hours",
+        "value": 1405.0,
+        "year": "2009-01-01T00:00:00"
+      },
+      {
+        "country": "Germany",
+        "datatype": "hours",
+        "value": 1425.7,
+        "year": "2010-01-01T00:00:00"
+      },
+      {
+        "country": "Germany",
+        "datatype": "hours",
+        "value": 1426.9,
+        "year": "2011-01-01T00:00:00"
+      },
+      {
+        "country": "Germany",
+        "datatype": "hours",
+        "value": 1408.0,
+        "year": "2012-01-01T00:00:00"
+      },
+      {
+        "country": "Germany",
+        "datatype": "hours",
+        "value": 1396.5,
+        "year": "2013-01-01T00:00:00"
+      },
+      {
+        "country": "Germany",
+        "datatype": "hours",
+        "value": 1400.4,
+        "year": "2014-01-01T00:00:00"
+      },
+      {
+        "country": "Germany",
+        "datatype": "hours",
+        "value": 1401.0,
+        "year": "2015-01-01T00:00:00"
+      },
+      {
+        "country": "Germany",
+        "datatype": "hours",
+        "value": 1395.6,
+        "year": "2016-01-01T00:00:00"
+      },
+      {
+        "country": "Germany",
+        "datatype": "hours",
+        "value": 1389.1,
+        "year": "2017-01-01T00:00:00"
+      },
+      {
+        "country": "Germany",
+        "datatype": "hours",
+        "value": 1386.9,
+        "year": "2018-01-01T00:00:00"
+      },
+      {
+        "country": "Germany",
+        "datatype": "hours",
+        "value": 1382.8,
+        "year": "2019-01-01T00:00:00"
+      },
+      {
+        "country": "Germany",
+        "datatype": "hours",
+        "value": 1331.7,
+        "year": "2020-01-01T00:00:00"
+      },
+      {
+        "country": "Japan",
+        "datatype": "hours",
+        "value": 1965.0,
+        "year": "1992-01-01T00:00:00"
+      },
+      {
+        "country": "Japan",
+        "datatype": "hours",
+        "value": 1905.0,
+        "year": "1993-01-01T00:00:00"
+      },
+      {
+        "country": "Japan",
+        "datatype": "hours",
+        "value": 1898.0,
+        "year": "1994-01-01T00:00:00"
+      },
+      {
+        "country": "Japan",
+        "datatype": "hours",
+        "value": 1884.0,
+        "year": "1995-01-01T00:00:00"
+      },
+      {
+        "country": "Japan",
+        "datatype": "hours",
+        "value": 1892.0,
+        "year": "1996-01-01T00:00:00"
+      },
+      {
+        "country": "Japan",
+        "datatype": "hours",
+        "value": 1865.0,
+        "year": "1997-01-01T00:00:00"
+      },
+      {
+        "country": "Japan",
+        "datatype": "hours",
+        "value": 1842.0,
+        "year": "1998-01-01T00:00:00"
+      },
+      {
+        "country": "Japan",
+        "datatype": "hours",
+        "value": 1810.0,
+        "year": "1999-01-01T00:00:00"
+      },
+      {
+        "country": "Japan",
+        "datatype": "hours",
+        "value": 1821.0,
+        "year": "2000-01-01T00:00:00"
+      },
+      {
+        "country": "Japan",
+        "datatype": "hours",
+        "value": 1809.0,
+        "year": "2001-01-01T00:00:00"
+      },
+      {
+        "country": "Japan",
+        "datatype": "hours",
+        "value": 1798.0,
+        "year": "2002-01-01T00:00:00"
+      },
+      {
+        "country": "Japan",
+        "datatype": "hours",
+        "value": 1799.0,
+        "year": "2003-01-01T00:00:00"
+      },
+      {
+        "country": "Japan",
+        "datatype": "hours",
+        "value": 1787.0,
+        "year": "2004-01-01T00:00:00"
+      },
+      {
+        "country": "Japan",
+        "datatype": "hours",
+        "value": 1775.0,
+        "year": "2005-01-01T00:00:00"
+      },
+      {
+        "country": "Japan",
+        "datatype": "hours",
+        "value": 1784.0,
+        "year": "2006-01-01T00:00:00"
+      },
+      {
+        "country": "Japan",
+        "datatype": "hours",
+        "value": 1785.0,
+        "year": "2007-01-01T00:00:00"
+      },
+      {
+        "country": "Japan",
+        "datatype": "hours",
+        "value": 1771.0,
+        "year": "2008-01-01T00:00:00"
+      },
+      {
+        "country": "Japan",
+        "datatype": "hours",
+        "value": 1714.0,
+        "year": "2009-01-01T00:00:00"
+      },
+      {
+        "country": "Japan",
+        "datatype": "hours",
+        "value": 1733.0,
+        "year": "2010-01-01T00:00:00"
+      },
+      {
+        "country": "Japan",
+        "datatype": "hours",
+        "value": 1728.0,
+        "year": "2011-01-01T00:00:00"
+      },
+      {
+        "country": "Japan",
+        "datatype": "hours",
+        "value": 1745.0,
+        "year": "2012-01-01T00:00:00"
+      },
+      {
+        "country": "Japan",
+        "datatype": "hours",
+        "value": 1734.0,
+        "year": "2013-01-01T00:00:00"
+      },
+      {
+        "country": "Japan",
+        "datatype": "hours",
+        "value": 1729.0,
+        "year": "2014-01-01T00:00:00"
+      },
+      {
+        "country": "Japan",
+        "datatype": "hours",
+        "value": 1719.0,
+        "year": "2015-01-01T00:00:00"
+      },
+      {
+        "country": "Japan",
+        "datatype": "hours",
+        "value": 1714.0,
+        "year": "2016-01-01T00:00:00"
+      },
+      {
+        "country": "Japan",
+        "datatype": "hours",
+        "value": 1709.0,
+        "year": "2017-01-01T00:00:00"
+      },
+      {
+        "country": "Japan",
+        "datatype": "hours",
+        "value": 1680.0,
+        "year": "2018-01-01T00:00:00"
+      },
+      {
+        "country": "Japan",
+        "datatype": "hours",
+        "value": 1644.0,
+        "year": "2019-01-01T00:00:00"
+      },
+      {
+        "country": "Japan",
+        "datatype": "hours",
+        "value": 1598.0,
+        "year": "2020-01-01T00:00:00"
+      },
+      {
+        "country": "Norway",
+        "datatype": "hours",
+        "value": 1510.1,
+        "year": "1992-01-01T00:00:00"
+      },
+      {
+        "country": "Norway",
+        "datatype": "hours",
+        "value": 1506.8,
+        "year": "1993-01-01T00:00:00"
+      },
+      {
+        "country": "Norway",
+        "datatype": "hours",
+        "value": 1505.0,
+        "year": "1994-01-01T00:00:00"
+      },
+      {
+        "country": "Norway",
+        "datatype": "hours",
+        "value": 1487.8,
+        "year": "1995-01-01T00:00:00"
+      },
+      {
+        "country": "Norway",
+        "datatype": "hours",
+        "value": 1482.6,
+        "year": "1996-01-01T00:00:00"
+      },
+      {
+        "country": "Norway",
+        "datatype": "hours",
+        "value": 1477.6,
+        "year": "1997-01-01T00:00:00"
+      },
+      {
+        "country": "Norway",
+        "datatype": "hours",
+        "value": 1475.5,
+        "year": "1998-01-01T00:00:00"
+      },
+      {
+        "country": "Norway",
+        "datatype": "hours",
+        "value": 1474.4,
+        "year": "1999-01-01T00:00:00"
+      },
+      {
+        "country": "Norway",
+        "datatype": "hours",
+        "value": 1456.6,
+        "year": "2000-01-01T00:00:00"
+      },
+      {
+        "country": "Norway",
+        "datatype": "hours",
+        "value": 1424.1,
+        "year": "2001-01-01T00:00:00"
+      },
+      {
+        "country": "Norway",
+        "datatype": "hours",
+        "value": 1406.7,
+        "year": "2002-01-01T00:00:00"
+      },
+      {
+        "country": "Norway",
+        "datatype": "hours",
+        "value": 1389.7,
+        "year": "2003-01-01T00:00:00"
+      },
+      {
+        "country": "Norway",
+        "datatype": "hours",
+        "value": 1405.1,
+        "year": "2004-01-01T00:00:00"
+      },
+      {
+        "country": "Norway",
+        "datatype": "hours",
+        "value": 1405.9,
+        "year": "2005-01-01T00:00:00"
+      },
+      {
+        "country": "Norway",
+        "datatype": "hours",
+        "value": 1399.3,
+        "year": "2006-01-01T00:00:00"
+      },
+      {
+        "country": "Norway",
+        "datatype": "hours",
+        "value": 1405.6,
+        "year": "2007-01-01T00:00:00"
+      },
+      {
+        "country": "Norway",
+        "datatype": "hours",
+        "value": 1406.6,
+        "year": "2008-01-01T00:00:00"
+      },
+      {
+        "country": "Norway",
+        "datatype": "hours",
+        "value": 1387.1,
+        "year": "2009-01-01T00:00:00"
+      },
+      {
+        "country": "Norway",
+        "datatype": "hours",
+        "value": 1395.1,
+        "year": "2010-01-01T00:00:00"
+      },
+      {
+        "country": "Norway",
+        "datatype": "hours",
+        "value": 1399.9,
+        "year": "2011-01-01T00:00:00"
+      },
+      {
+        "country": "Norway",
+        "datatype": "hours",
+        "value": 1396.3,
+        "year": "2012-01-01T00:00:00"
+      },
+      {
+        "country": "Norway",
+        "datatype": "hours",
+        "value": 1386.7,
+        "year": "2013-01-01T00:00:00"
+      },
+      {
+        "country": "Norway",
+        "datatype": "hours",
+        "value": 1389.5,
+        "year": "2014-01-01T00:00:00"
+      },
+      {
+        "country": "Norway",
+        "datatype": "hours",
+        "value": 1391.9,
+        "year": "2015-01-01T00:00:00"
+      },
+      {
+        "country": "Norway",
+        "datatype": "hours",
+        "value": 1394.7,
+        "year": "2016-01-01T00:00:00"
+      },
+      {
+        "country": "Norway",
+        "datatype": "hours",
+        "value": 1380.4,
+        "year": "2017-01-01T00:00:00"
+      },
+      {
+        "country": "Norway",
+        "datatype": "hours",
+        "value": 1379.3,
+        "year": "2018-01-01T00:00:00"
+      },
+      {
+        "country": "Norway",
+        "datatype": "hours",
+        "value": 1381.4,
+        "year": "2019-01-01T00:00:00"
+      },
+      {
+        "country": "Norway",
+        "datatype": "hours",
+        "value": 1368.7,
+        "year": "2020-01-01T00:00:00"
+      },
+      {
+        "country": "Sweden",
+        "datatype": "hours",
+        "value": 1427.0,
+        "year": "1992-01-01T00:00:00"
+      },
+      {
+        "country": "Sweden",
+        "datatype": "hours",
+        "value": 1443.0,
+        "year": "1993-01-01T00:00:00"
+      },
+      {
+        "country": "Sweden",
+        "datatype": "hours",
+        "value": 1477.0,
+        "year": "1994-01-01T00:00:00"
+      },
+      {
+        "country": "Sweden",
+        "datatype": "hours",
+        "value": 1483.0,
+        "year": "1995-01-01T00:00:00"
+      },
+      {
+        "country": "Sweden",
+        "datatype": "hours",
+        "value": 1493.0,
+        "year": "1996-01-01T00:00:00"
+      },
+      {
+        "country": "Sweden",
+        "datatype": "hours",
+        "value": 1498.0,
+        "year": "1997-01-01T00:00:00"
+      },
+      {
+        "country": "Sweden",
+        "datatype": "hours",
+        "value": 1497.0,
+        "year": "1998-01-01T00:00:00"
+      },
+      {
+        "country": "Sweden",
+        "datatype": "hours",
+        "value": 1506.0,
+        "year": "1999-01-01T00:00:00"
+      },
+      {
+        "country": "Sweden",
+        "datatype": "hours",
+        "value": 1486.0,
+        "year": "2000-01-01T00:00:00"
+      },
+      {
+        "country": "Sweden",
+        "datatype": "hours",
+        "value": 1465.0,
+        "year": "2001-01-01T00:00:00"
+      },
+      {
+        "country": "Sweden",
+        "datatype": "hours",
+        "value": 1445.0,
+        "year": "2002-01-01T00:00:00"
+      },
+      {
+        "country": "Sweden",
+        "datatype": "hours",
+        "value": 1432.0,
+        "year": "2003-01-01T00:00:00"
+      },
+      {
+        "country": "Sweden",
+        "datatype": "hours",
+        "value": 1454.0,
+        "year": "2004-01-01T00:00:00"
+      },
+      {
+        "country": "Sweden",
+        "datatype": "hours",
+        "value": 1453.0,
+        "year": "2005-01-01T00:00:00"
+      },
+      {
+        "country": "Sweden",
+        "datatype": "hours",
+        "value": 1451.0,
+        "year": "2006-01-01T00:00:00"
+      },
+      {
+        "country": "Sweden",
+        "datatype": "hours",
+        "value": 1463.0,
+        "year": "2007-01-01T00:00:00"
+      },
+      {
+        "country": "Sweden",
+        "datatype": "hours",
+        "value": 1472.0,
+        "year": "2008-01-01T00:00:00"
+      },
+      {
+        "country": "Sweden",
+        "datatype": "hours",
+        "value": 1459.0,
+        "year": "2009-01-01T00:00:00"
+      },
+      {
+        "country": "Sweden",
+        "datatype": "hours",
+        "value": 1484.0,
+        "year": "2010-01-01T00:00:00"
+      },
+      {
+        "country": "Sweden",
+        "datatype": "hours",
+        "value": 1484.0,
+        "year": "2011-01-01T00:00:00"
+      },
+      {
+        "country": "Sweden",
+        "datatype": "hours",
+        "value": 1472.0,
+        "year": "2012-01-01T00:00:00"
+      },
+      {
+        "country": "Sweden",
+        "datatype": "hours",
+        "value": 1464.0,
+        "year": "2013-01-01T00:00:00"
+      },
+      {
+        "country": "Sweden",
+        "datatype": "hours",
+        "value": 1465.0,
+        "year": "2014-01-01T00:00:00"
+      },
+      {
+        "country": "Sweden",
+        "datatype": "hours",
+        "value": 1466.0,
+        "year": "2015-01-01T00:00:00"
+      },
+      {
+        "country": "Sweden",
+        "datatype": "hours",
+        "value": 1478.0,
+        "year": "2016-01-01T00:00:00"
+      },
+      {
+        "country": "Sweden",
+        "datatype": "hours",
+        "value": 1466.0,
+        "year": "2017-01-01T00:00:00"
+      },
+      {
+        "country": "Sweden",
+        "datatype": "hours",
+        "value": 1466.0,
+        "year": "2018-01-01T00:00:00"
+      },
+      {
+        "country": "Sweden",
+        "datatype": "hours",
+        "value": 1452.0,
+        "year": "2019-01-01T00:00:00"
+      },
+      {
+        "country": "Sweden",
+        "datatype": "hours",
+        "value": 1424.0,
+        "year": "2020-01-01T00:00:00"
+      },
+      {
+        "country": "United Kingdom",
+        "datatype": "hours",
+        "value": 1583.0,
+        "year": "1992-01-01T00:00:00"
+      },
+      {
+        "country": "United Kingdom",
+        "datatype": "hours",
+        "value": 1577.0,
+        "year": "1993-01-01T00:00:00"
+      },
+      {
+        "country": "United Kingdom",
+        "datatype": "hours",
+        "value": 1586.0,
+        "year": "1994-01-01T00:00:00"
+      },
+      {
+        "country": "United Kingdom",
+        "datatype": "hours",
+        "value": 1586.0,
+        "year": "1995-01-01T00:00:00"
+      },
+      {
+        "country": "United Kingdom",
+        "datatype": "hours",
+        "value": 1586.0,
+        "year": "1996-01-01T00:00:00"
+      },
+      {
+        "country": "United Kingdom",
+        "datatype": "hours",
+        "value": 1586.0,
+        "year": "1997-01-01T00:00:00"
+      },
+      {
+        "country": "United Kingdom",
+        "datatype": "hours",
+        "value": 1582.0,
+        "year": "1998-01-01T00:00:00"
+      },
+      {
+        "country": "United Kingdom",
+        "datatype": "hours",
+        "value": 1573.0,
+        "year": "1999-01-01T00:00:00"
+      },
+      {
+        "country": "United Kingdom",
+        "datatype": "hours",
+        "value": 1558.0,
+        "year": "2000-01-01T00:00:00"
+      },
+      {
+        "country": "United Kingdom",
+        "datatype": "hours",
+        "value": 1563.0,
+        "year": "2001-01-01T00:00:00"
+      },
+      {
+        "country": "United Kingdom",
+        "datatype": "hours",
+        "value": 1543.0,
+        "year": "2002-01-01T00:00:00"
+      },
+      {
+        "country": "United Kingdom",
+        "datatype": "hours",
+        "value": 1534.0,
+        "year": "2003-01-01T00:00:00"
+      },
+      {
+        "country": "United Kingdom",
+        "datatype": "hours",
+        "value": 1534.0,
+        "year": "2004-01-01T00:00:00"
+      },
+      {
+        "country": "United Kingdom",
+        "datatype": "hours",
+        "value": 1544.0,
+        "year": "2005-01-01T00:00:00"
+      },
+      {
+        "country": "United Kingdom",
+        "datatype": "hours",
+        "value": 1536.0,
+        "year": "2006-01-01T00:00:00"
+      },
+      {
+        "country": "United Kingdom",
+        "datatype": "hours",
+        "value": 1541.0,
+        "year": "2007-01-01T00:00:00"
+      },
+      {
+        "country": "United Kingdom",
+        "datatype": "hours",
+        "value": 1525.0,
+        "year": "2008-01-01T00:00:00"
+      },
+      {
+        "country": "United Kingdom",
+        "datatype": "hours",
+        "value": 1516.0,
+        "year": "2009-01-01T00:00:00"
+      },
+      {
+        "country": "United Kingdom",
+        "datatype": "hours",
+        "value": 1507.0,
+        "year": "2010-01-01T00:00:00"
+      },
+      {
+        "country": "United Kingdom",
+        "datatype": "hours",
+        "value": 1515.0,
+        "year": "2011-01-01T00:00:00"
+      },
+      {
+        "country": "United Kingdom",
+        "datatype": "hours",
+        "value": 1531.0,
+        "year": "2012-01-01T00:00:00"
+      },
+      {
+        "country": "United Kingdom",
+        "datatype": "hours",
+        "value": 1534.0,
+        "year": "2013-01-01T00:00:00"
+      },
+      {
+        "country": "United Kingdom",
+        "datatype": "hours",
+        "value": 1542.0,
+        "year": "2014-01-01T00:00:00"
+      },
+      {
+        "country": "United Kingdom",
+        "datatype": "hours",
+        "value": 1525.0,
+        "year": "2015-01-01T00:00:00"
+      },
+      {
+        "country": "United Kingdom",
+        "datatype": "hours",
+        "value": 1541.0,
+        "year": "2016-01-01T00:00:00"
+      },
+      {
+        "country": "United Kingdom",
+        "datatype": "hours",
+        "value": 1536.0,
+        "year": "2017-01-01T00:00:00"
+      },
+      {
+        "country": "United Kingdom",
+        "datatype": "hours",
+        "value": 1536.0,
+        "year": "2018-01-01T00:00:00"
+      },
+      {
+        "country": "United Kingdom",
+        "datatype": "hours",
+        "value": 1537.0,
+        "year": "2019-01-01T00:00:00"
+      },
+      {
+        "country": "United Kingdom",
+        "datatype": "hours",
+        "value": 1367.0,
+        "year": "2020-01-01T00:00:00"
+      },
+      {
+        "country": "United States",
+        "datatype": "hours",
+        "value": 1822.0,
+        "year": "1992-01-01T00:00:00"
+      },
+      {
+        "country": "United States",
+        "datatype": "hours",
+        "value": 1828.0,
+        "year": "1993-01-01T00:00:00"
+      },
+      {
+        "country": "United States",
+        "datatype": "hours",
+        "value": 1839.0,
+        "year": "1994-01-01T00:00:00"
+      },
+      {
+        "country": "United States",
+        "datatype": "hours",
+        "value": 1839.0,
+        "year": "1995-01-01T00:00:00"
+      },
+      {
+        "country": "United States",
+        "datatype": "hours",
+        "value": 1840.0,
+        "year": "1996-01-01T00:00:00"
+      },
+      {
+        "country": "United States",
+        "datatype": "hours",
+        "value": 1843.0,
+        "year": "1997-01-01T00:00:00"
+      },
+      {
+        "country": "United States",
+        "datatype": "hours",
+        "value": 1842.0,
+        "year": "1998-01-01T00:00:00"
+      },
+      {
+        "country": "United States",
+        "datatype": "hours",
+        "value": 1839.0,
+        "year": "1999-01-01T00:00:00"
+      },
+      {
+        "country": "United States",
+        "datatype": "hours",
+        "value": 1832.0,
+        "year": "2000-01-01T00:00:00"
+      },
+      {
+        "country": "United States",
+        "datatype": "hours",
+        "value": 1811.0,
+        "year": "2001-01-01T00:00:00"
+      },
+      {
+        "country": "United States",
+        "datatype": "hours",
+        "value": 1806.0,
+        "year": "2002-01-01T00:00:00"
+      },
+      {
+        "country": "United States",
+        "datatype": "hours",
+        "value": 1796.0,
+        "year": "2003-01-01T00:00:00"
+      },
+      {
+        "country": "United States",
+        "datatype": "hours",
+        "value": 1798.0,
+        "year": "2004-01-01T00:00:00"
+      },
+      {
+        "country": "United States",
+        "datatype": "hours",
+        "value": 1794.0,
+        "year": "2005-01-01T00:00:00"
+      },
+      {
+        "country": "United States",
+        "datatype": "hours",
+        "value": 1796.0,
+        "year": "2006-01-01T00:00:00"
+      },
+      {
+        "country": "United States",
+        "datatype": "hours",
+        "value": 1795.0,
+        "year": "2007-01-01T00:00:00"
+      },
+      {
+        "country": "United States",
+        "datatype": "hours",
+        "value": 1786.0,
+        "year": "2008-01-01T00:00:00"
+      },
+      {
+        "country": "United States",
+        "datatype": "hours",
+        "value": 1761.0,
+        "year": "2009-01-01T00:00:00"
+      },
+      {
+        "country": "United States",
+        "datatype": "hours",
+        "value": 1772.0,
+        "year": "2010-01-01T00:00:00"
+      },
+      {
+        "country": "United States",
+        "datatype": "hours",
+        "value": 1778.0,
+        "year": "2011-01-01T00:00:00"
+      },
+      {
+        "country": "United States",
+        "datatype": "hours",
+        "value": 1782.0,
+        "year": "2012-01-01T00:00:00"
+      },
+      {
+        "country": "United States",
+        "datatype": "hours",
+        "value": 1780.0,
+        "year": "2013-01-01T00:00:00"
+      },
+      {
+        "country": "United States",
+        "datatype": "hours",
+        "value": 1782.0,
+        "year": "2014-01-01T00:00:00"
+      },
+      {
+        "country": "United States",
+        "datatype": "hours",
+        "value": 1783.0,
+        "year": "2015-01-01T00:00:00"
+      },
+      {
+        "country": "United States",
+        "datatype": "hours",
+        "value": 1778.0,
+        "year": "2016-01-01T00:00:00"
+      },
+      {
+        "country": "United States",
+        "datatype": "hours",
+        "value": 1778.0,
+        "year": "2017-01-01T00:00:00"
+      },
+      {
+        "country": "United States",
+        "datatype": "hours",
+        "value": 1782.0,
+        "year": "2018-01-01T00:00:00"
+      },
+      {
+        "country": "United States",
+        "datatype": "hours",
+        "value": 1777.0,
+        "year": "2019-01-01T00:00:00"
+      },
+      {
+        "country": "United States",
+        "datatype": "hours",
+        "value": 1767.0,
+        "year": "2020-01-01T00:00:00"
+      },
+      {
+        "country": "Iceland",
+        "datatype": "hours",
+        "value": 1668.0,
+        "year": "1992-01-01T00:00:00"
+      },
+      {
+        "country": "Iceland",
+        "datatype": "hours",
+        "value": 1683.0,
+        "year": "1993-01-01T00:00:00"
+      },
+      {
+        "country": "Iceland",
+        "datatype": "hours",
+        "value": 1655.0,
+        "year": "1994-01-01T00:00:00"
+      },
+      {
+        "country": "Iceland",
+        "datatype": "hours",
+        "value": 1641.0,
+        "year": "1995-01-01T00:00:00"
+      },
+      {
+        "country": "Iceland",
+        "datatype": "hours",
+        "value": 1659.0,
+        "year": "1996-01-01T00:00:00"
+      },
+      {
+        "country": "Iceland",
+        "datatype": "hours",
+        "value": 1684.0,
+        "year": "1997-01-01T00:00:00"
+      },
+      {
+        "country": "Iceland",
+        "datatype": "hours",
+        "value": 1665.0,
+        "year": "1998-01-01T00:00:00"
+      },
+      {
+        "country": "Iceland",
+        "datatype": "hours",
+        "value": 1645.0,
+        "year": "1999-01-01T00:00:00"
+      },
+      {
+        "country": "Iceland",
+        "datatype": "hours",
+        "value": 1696.0,
+        "year": "2000-01-01T00:00:00"
+      },
+      {
+        "country": "Iceland",
+        "datatype": "hours",
+        "value": 1707.0,
+        "year": "2001-01-01T00:00:00"
+      },
+      {
+        "country": "Iceland",
+        "datatype": "hours",
+        "value": 1672.0,
+        "year": "2002-01-01T00:00:00"
+      },
+      {
+        "country": "Iceland",
+        "datatype": "hours",
+        "value": 1639.0,
+        "year": "2003-01-01T00:00:00"
+      },
+      {
+        "country": "Iceland",
+        "datatype": "hours",
+        "value": 1645.0,
+        "year": "2004-01-01T00:00:00"
+      },
+      {
+        "country": "Iceland",
+        "datatype": "hours",
+        "value": 1637.0,
+        "year": "2005-01-01T00:00:00"
+      },
+      {
+        "country": "Iceland",
+        "datatype": "hours",
+        "value": 1627.0,
+        "year": "2006-01-01T00:00:00"
+      },
+      {
+        "country": "Iceland",
+        "datatype": "hours",
+        "value": 1605.0,
+        "year": "2007-01-01T00:00:00"
+      },
+      {
+        "country": "Iceland",
+        "datatype": "hours",
+        "value": 1625.0,
+        "year": "2008-01-01T00:00:00"
+      },
+      {
+        "country": "Iceland",
+        "datatype": "hours",
+        "value": 1536.0,
+        "year": "2009-01-01T00:00:00"
+      },
+      {
+        "country": "Iceland",
+        "datatype": "hours",
+        "value": 1528.0,
+        "year": "2010-01-01T00:00:00"
+      },
+      {
+        "country": "Iceland",
+        "datatype": "hours",
+        "value": 1538.0,
+        "year": "2011-01-01T00:00:00"
+      },
+      {
+        "country": "Iceland",
+        "datatype": "hours",
+        "value": 1523.0,
+        "year": "2012-01-01T00:00:00"
+      },
+      {
+        "country": "Iceland",
+        "datatype": "hours",
+        "value": 1524.0,
+        "year": "2013-01-01T00:00:00"
+      },
+      {
+        "country": "Iceland",
+        "datatype": "hours",
+        "value": 1513.0,
+        "year": "2014-01-01T00:00:00"
+      },
+      {
+        "country": "Iceland",
+        "datatype": "hours",
+        "value": 1511.0,
+        "year": "2015-01-01T00:00:00"
+      },
+      {
+        "country": "Iceland",
+        "datatype": "hours",
+        "value": 1520.0,
+        "year": "2016-01-01T00:00:00"
+      },
+      {
+        "country": "Iceland",
+        "datatype": "hours",
+        "value": 1507.0,
+        "year": "2017-01-01T00:00:00"
+      },
+      {
+        "country": "Iceland",
+        "datatype": "hours",
+        "value": 1496.0,
+        "year": "2018-01-01T00:00:00"
+      },
+      {
+        "country": "Iceland",
+        "datatype": "hours",
+        "value": 1480.0,
+        "year": "2019-01-01T00:00:00"
+      },
+      {
+        "country": "Iceland",
+        "datatype": "hours",
+        "value": 1435.0,
+        "year": "2020-01-01T00:00:00"
+      }
+    ],
+    "data-aee2d10bcb846d60361ee6092ae8730a": [
+      {
+        "Denmark": 30.149171965863566,
+        "Finland": 21.1801892383431,
+        "France": 21.759620190017124,
+        "Germany": 27.19427808498729,
+        "Iceland": 25.46200823922566,
+        "Japan": 19.075358891669463,
+        "Norway": 21.659697127698365,
+        "Sweden": 19.85050403785641,
+        "United Kingdom": 21.039825150125203,
+        "United States": 26.558415212963226,
+        "datatype": "wage_per_hour",
+        "year": "1992-01-01T00:00:00"
+      },
+      {
+        "Denmark": 30.54167258499524,
+        "Finland": 20.454973625825502,
+        "France": 22.1200838920477,
+        "Germany": 27.817332012413516,
+        "Iceland": 23.901244772746583,
+        "Japan": 19.489589708402992,
+        "Norway": 21.914204385699232,
+        "Sweden": 19.373193078391893,
+        "United Kingdom": 21.471924909729616,
+        "United States": 26.319239116027024,
+        "datatype": "wage_per_hour",
+        "year": "1993-01-01T00:00:00"
+      },
+      {
+        "Denmark": 30.324134998805615,
+        "Finland": 20.50298123868103,
+        "France": 22.265957785473443,
+        "Germany": 27.943434187137967,
+        "Iceland": 24.794854823716012,
+        "Japan": 19.759910320878927,
+        "Norway": 22.387670857720796,
+        "Sweden": 19.38777285934983,
+        "United Kingdom": 21.731883662964503,
+        "United States": 26.061212777592825,
+        "datatype": "wage_per_hour",
+        "year": "1994-01-01T00:00:00"
+      },
+      {
+        "Denmark": 30.698765670001478,
+        "Finland": 21.235581624826892,
+        "France": 22.90867933504884,
+        "Germany": 28.650814441083106,
+        "Iceland": 25.608688937812556,
+        "Japan": 20.134890716967465,
+        "Norway": 22.85798607159894,
+        "Sweden": 19.350051005864263,
+        "United Kingdom": 21.74873395095208,
+        "United States": 26.212923503232844,
+        "datatype": "wage_per_hour",
+        "year": "1995-01-01T00:00:00"
+      },
+      {
+        "Denmark": 31.41573342999214,
+        "Finland": 21.74900533686591,
+        "France": 23.03018081953394,
+        "Germany": 29.247748529603772,
+        "Iceland": 26.13371096923749,
+        "Japan": 20.130335423717284,
+        "Norway": 23.622674899766963,
+        "Sweden": 20.368369171504956,
+        "United Kingdom": 21.739073510613807,
+        "United States": 26.578492062908587,
+        "datatype": "wage_per_hour",
+        "year": "1996-01-01T00:00:00"
+      },
+      {
+        "Denmark": 31.562341292242927,
+        "Finland": 21.822679376171276,
+        "France": 23.30357864431266,
+        "Germany": 29.303613411358494,
+        "Iceland": 26.837722966639014,
+        "Japan": 20.587300592058927,
+        "Norway": 24.22892577342129,
+        "Sweden": 21.098256892093858,
+        "United Kingdom": 22.591528819894894,
+        "United States": 27.19431040407667,
+        "datatype": "wage_per_hour",
+        "year": "1997-01-01T00:00:00"
+      },
+      {
+        "Denmark": 31.832466112126024,
+        "Finland": 22.538269189273088,
+        "France": 23.825663972584604,
+        "Germany": 29.72598318317634,
+        "Iceland": 29.956288841860783,
+        "Japan": 20.762201660426655,
+        "Norway": 25.152959730840596,
+        "Sweden": 21.812492785550035,
+        "United Kingdom": 23.042868129452906,
+        "United States": 28.32908431529381,
+        "datatype": "wage_per_hour",
+        "year": "1998-01-01T00:00:00"
+      },
+      {
+        "Denmark": 31.85905011406532,
+        "Finland": 23.065181733206444,
+        "France": 24.459349810291826,
+        "Germany": 30.39014817213,
+        "Iceland": 31.738701796701456,
+        "Japan": 21.079325683426795,
+        "Norway": 25.980633917552563,
+        "Sweden": 22.131084040940372,
+        "United Kingdom": 24.440951766191418,
+        "United States": 29.118343235029307,
+        "datatype": "wage_per_hour",
+        "year": "1999-01-01T00:00:00"
+      },
+      {
+        "Denmark": 31.62351517606255,
+        "Finland": 23.617590298383636,
+        "France": 24.892243635117524,
+        "Germany": 31.096066757729584,
+        "Iceland": 31.727797007595342,
+        "Japan": 21.06801569993465,
+        "Norway": 26.532549458030072,
+        "Sweden": 23.14195721312766,
+        "United Kingdom": 25.806548457031322,
+        "United States": 30.221453381690612,
+        "datatype": "wage_per_hour",
+        "year": "2000-01-01T00:00:00"
+      },
+      {
+        "Denmark": 31.769124924052075,
+        "Finland": 23.944991293554526,
+        "France": 25.375427017511182,
+        "Germany": 31.49756005108586,
+        "Iceland": 31.264634719281194,
+        "Japan": 20.996339649473743,
+        "Norway": 27.799660326428693,
+        "Sweden": 23.752141963032834,
+        "United Kingdom": 26.80632007205125,
+        "United States": 30.830811300813586,
+        "datatype": "wage_per_hour",
+        "year": "2001-01-01T00:00:00"
+      },
+      {
+        "Denmark": 32.633168644299865,
+        "Finland": 24.1919292746957,
+        "France": 26.649583687935504,
+        "Germany": 31.891048992062736,
+        "Iceland": 32.83649978650425,
+        "Japan": 20.705348481506398,
+        "Norway": 29.313684571447716,
+        "Sweden": 24.39574625790623,
+        "United Kingdom": 27.59006860453882,
+        "United States": 31.159833535913453,
+        "datatype": "wage_per_hour",
+        "year": "2002-01-01T00:00:00"
+      },
+      {
+        "Denmark": 33.56253995022915,
+        "Finland": 24.727638687713124,
+        "France": 26.811881571876643,
+        "Germany": 32.11957630168373,
+        "Iceland": 32.66286618691568,
+        "Japan": 20.708683087693384,
+        "Norway": 30.070521277576812,
+        "Sweden": 24.82943398062563,
+        "United Kingdom": 28.572692304873534,
+        "United States": 31.71801988960284,
+        "datatype": "wage_per_hour",
+        "year": "2003-01-01T00:00:00"
+      },
+      {
+        "Denmark": 34.31472327618073,
+        "Finland": 25.528020084396612,
+        "France": 26.824344196376355,
+        "Germany": 32.13872039153133,
+        "Iceland": 34.54590636007818,
+        "Japan": 21.198924019456687,
+        "Norway": 30.724001850476768,
+        "Sweden": 25.257114841674,
+        "United Kingdom": 29.46230828430326,
+        "United States": 32.27109562671535,
+        "datatype": "wage_per_hour",
+        "year": "2004-01-01T00:00:00"
+      },
+      {
+        "Denmark": 35.06473955572474,
+        "Finland": 26.25962173631147,
+        "France": 27.129217069327478,
+        "Germany": 32.500140490171454,
+        "Iceland": 37.37778836560635,
+        "Japan": 21.903751173113747,
+        "Norway": 31.60832763139739,
+        "Sweden": 25.911745864166274,
+        "United Kingdom": 29.383770127901293,
+        "United States": 32.38146693051271,
+        "datatype": "wage_per_hour",
+        "year": "2005-01-01T00:00:00"
+      },
+      {
+        "Denmark": 35.539310277091076,
+        "Finland": 26.894590256820276,
+        "France": 27.74106456833498,
+        "Germany": 32.030320323533374,
+        "Iceland": 39.59669157404536,
+        "Japan": 21.7767097274023,
+        "Norway": 33.05563739220267,
+        "Sweden": 26.672114699803792,
+        "United Kingdom": 30.303571002547983,
+        "United States": 32.85849659178808,
+        "datatype": "wage_per_hour",
+        "year": "2006-01-01T00:00:00"
+      },
+      {
+        "Denmark": 36.50326321494466,
+        "Finland": 27.309247531972584,
+        "France": 27.44604217898809,
+        "Germany": 31.920370115940514,
+        "Iceland": 41.33985513323632,
+        "Japan": 21.704495418171373,
+        "Norway": 34.3873108552781,
+        "Sweden": 27.378053139469586,
+        "United Kingdom": 31.03490334576703,
+        "United States": 33.53091072153125,
+        "datatype": "wage_per_hour",
+        "year": "2007-01-01T00:00:00"
+      },
+      {
+        "Denmark": 37.07497286848671,
+        "Finland": 27.61041168831443,
+        "France": 27.285999178421065,
+        "Germany": 32.22049918406488,
+        "Iceland": 36.202558190419815,
+        "Japan": 21.710136705497177,
+        "Norway": 35.123222927385896,
+        "Sweden": 27.758683097803466,
+        "United Kingdom": 30.61436473762813,
+        "United States": 33.58693498786064,
+        "datatype": "wage_per_hour",
+        "year": "2008-01-01T00:00:00"
+      },
+      {
+        "Denmark": 38.322253794869304,
+        "Finland": 28.21921934046424,
+        "France": 28.374682234395816,
+        "Germany": 33.19997372791538,
+        "Iceland": 32.406753329371355,
+        "Japan": 22.141388640774156,
+        "Norway": 35.98782891166462,
+        "Sweden": 28.113067618232417,
+        "United Kingdom": 30.92635308735554,
+        "United States": 34.33907354329892,
+        "datatype": "wage_per_hour",
+        "year": "2009-01-01T00:00:00"
+      },
+      {
+        "Denmark": 38.627508531535305,
+        "Finland": 28.52431763118997,
+        "France": 28.782435818913182,
+        "Germany": 33.00420878781799,
+        "Iceland": 33.53034495652192,
+        "Japan": 21.97652782169775,
+        "Norway": 36.25951532594409,
+        "Sweden": 27.987795908998113,
+        "United Kingdom": 31.09717216206158,
+        "United States": 34.45139629053589,
+        "datatype": "wage_per_hour",
+        "year": "2010-01-01T00:00:00"
+      },
+      {
+        "Denmark": 38.026303169425816,
+        "Finland": 28.66505354621337,
+        "France": 28.62592447033422,
+        "Germany": 33.65728172248854,
+        "Iceland": 34.75448799070891,
+        "Japan": 22.395655356745195,
+        "Norway": 37.393207489464245,
+        "Sweden": 28.41025495034562,
+        "United Kingdom": 30.386700866390495,
+        "United States": 34.38227221826305,
+        "datatype": "wage_per_hour",
+        "year": "2011-01-01T00:00:00"
+      },
+      {
+        "Denmark": 38.34861256556163,
+        "Finland": 28.87768119754273,
+        "France": 28.91140142536353,
+        "Germany": 34.57567391685646,
+        "Iceland": 34.889558415794156,
+        "Japan": 21.80960300172338,
+        "Norway": 38.51368288690432,
+        "Sweden": 29.26622336186977,
+        "United Kingdom": 29.689556687968647,
+        "United States": 34.58709373283547,
+        "datatype": "wage_per_hour",
+        "year": "2012-01-01T00:00:00"
+      },
+      {
+        "Denmark": 38.51679827159397,
+        "Finland": 28.741308672564745,
+        "France": 29.440821682754457,
+        "Germany": 35.20136573018783,
+        "Iceland": 35.41048221814521,
+        "Japan": 21.974086617646023,
+        "Norway": 39.55619901223156,
+        "Sweden": 29.748788869961817,
+        "United Kingdom": 30.02126673924244,
+        "United States": 34.46455584582944,
+        "datatype": "wage_per_hour",
+        "year": "2013-01-01T00:00:00"
+      },
+      {
+        "Denmark": 39.586910430442785,
+        "Finland": 28.77884757253511,
+        "France": 29.800244754285966,
+        "Germany": 35.70481920844352,
+        "Iceland": 36.17707000332855,
+        "Japan": 21.65307054057241,
+        "Norway": 39.66932249063217,
+        "Sweden": 30.07920989006935,
+        "United Kingdom": 29.932435242551684,
+        "United States": 34.94018538616425,
+        "datatype": "wage_per_hour",
+        "year": "2014-01-01T00:00:00"
+      },
+      {
+        "Denmark": 40.48318670205089,
+        "Finland": 29.06377981257955,
+        "France": 30.072203429228242,
+        "Germany": 36.52500428882491,
+        "Iceland": 38.63437696328604,
+        "Japan": 21.678103978623966,
+        "Norway": 39.80453106448588,
+        "Sweden": 30.504154442327422,
+        "United Kingdom": 30.58814192464754,
+        "United States": 35.80737844551256,
+        "datatype": "wage_per_hour",
+        "year": "2015-01-01T00:00:00"
+      },
+      {
+        "Denmark": 40.39900165899894,
+        "Finland": 29.317272192901285,
+        "France": 30.36416362820808,
+        "Germany": 37.18960988568508,
+        "Iceland": 41.413826384559606,
+        "Japan": 22.05973658648495,
+        "Norway": 38.87872013789051,
+        "Sweden": 30.73277020067537,
+        "United Kingdom": 30.616988062763532,
+        "United States": 35.96279923774392,
+        "datatype": "wage_per_hour",
+        "year": "2016-01-01T00:00:00"
+      },
+      {
+        "Denmark": 40.85122162072813,
+        "Finland": 29.26969431158044,
+        "France": 31.06919958958979,
+        "Germany": 37.76124546651552,
+        "Iceland": 45.81993159409237,
+        "Japan": 22.21899082739573,
+        "Norway": 39.20393032419429,
+        "Sweden": 31.15996823738097,
+        "United Kingdom": 30.693725207530793,
+        "United States": 36.3433364819063,
+        "datatype": "wage_per_hour",
+        "year": "2017-01-01T00:00:00"
+      },
+      {
+        "Denmark": 41.849532744194065,
+        "Finland": 29.60597818127051,
+        "France": 30.955429336421666,
+        "Germany": 38.37374684072752,
+        "Iceland": 48.4396871133484,
+        "Japan": 22.89402952706375,
+        "Norway": 39.65101441295411,
+        "Sweden": 31.320998596464598,
+        "United Kingdom": 30.748195511955796,
+        "United States": 36.64586988905724,
+        "datatype": "wage_per_hour",
+        "year": "2018-01-01T00:00:00"
+      },
+      {
+        "Denmark": 41.974883381194935,
+        "Finland": 30.051056689929048,
+        "France": 31.1796089729225,
+        "Germany": 39.0811082366429,
+        "Iceland": 47.56159296912669,
+        "Japan": 23.74765031536083,
+        "Norway": 40.359723818669465,
+        "Sweden": 31.968302572185053,
+        "United Kingdom": 31.18843758435628,
+        "United States": 37.35650284312178,
+        "datatype": "wage_per_hour",
+        "year": "2019-01-01T00:00:00"
+      },
+      {
+        "Denmark": 43.40984557124577,
+        "Finland": 30.195669626976485,
+        "France": 32.51120151956755,
+        "Germany": 40.35818773077667,
+        "Iceland": 47.02997429011902,
+        "Japan": 24.101918061931414,
+        "Norway": 40.75387559213012,
+        "Sweden": 33.020006943688834,
+        "United Kingdom": 34.48954032145084,
+        "United States": 39.27097137622892,
+        "datatype": "wage_per_hour",
+        "year": "2020-01-01T00:00:00"
+      }
+    ],
+    "data-b8d636ea8f97121bac55fca097f2f815": [
+      {
+        "Denmark": 43776.5976944339,
+        "Finland": 34989.6726217428,
+        "France": 35576.979010678,
+        "Germany": 42561.7646308136,
+        "Iceland": 42470.6297430284,
+        "Japan": 37483.0802221305,
+        "Norway": 32708.3086325373,
+        "Sweden": 28326.6692620211,
+        "United Kingdom": 33306.0432126482,
+        "United States": 48389.432518019,
+        "datatype": "wages",
+        "year": "1992-01-01T00:00:00"
+      },
+      {
+        "Denmark": 44254.8835756581,
+        "Finland": 33771.1614562379,
+        "France": 35989.3764923616,
+        "Germany": 42844.2547655193,
+        "Iceland": 40225.7949525325,
+        "Japan": 37127.6683945077,
+        "Norway": 33020.3231683716,
+        "Sweden": 27955.5176121195,
+        "United Kingdom": 33861.2255826436,
+        "United States": 48111.5691040974,
+        "datatype": "wages",
+        "year": "1993-01-01T00:00:00"
+      },
+      {
+        "Denmark": 42666.0579433195,
+        "Finland": 34260.481649836,
+        "France": 36137.6494858234,
+        "Germany": 42937.8809719562,
+        "Iceland": 41035.48473325,
+        "Japan": 37504.3097890282,
+        "Norway": 33693.4446408698,
+        "Sweden": 28635.7405132597,
+        "United Kingdom": 34466.7674894617,
+        "United States": 47926.5702979932,
+        "datatype": "wages",
+        "year": "1994-01-01T00:00:00"
+      },
+      {
+        "Denmark": 43561.5484857321,
+        "Finland": 35612.0703848347,
+        "France": 36676.7956154132,
+        "Germany": 43852.9365835218,
+        "Iceland": 42023.8585469504,
+        "Japan": 37934.1341107667,
+        "Norway": 34008.1116773249,
+        "Sweden": 28696.1256416967,
+        "United Kingdom": 34493.49204621,
+        "United States": 48205.5663224452,
+        "datatype": "wages",
+        "year": "1995-01-01T00:00:00"
+      },
+      {
+        "Denmark": 44359.0156031489,
+        "Finland": 36429.5839392504,
+        "France": 36779.1987687957,
+        "Germany": 44362.984969703,
+        "Iceland": 43355.826497965,
+        "Japan": 38086.5946216731,
+        "Norway": 35022.9778063945,
+        "Sweden": 30409.9751730569,
+        "United Kingdom": 34478.1705878335,
+        "United States": 48904.4253957518,
+        "datatype": "wages",
+        "year": "1996-01-01T00:00:00"
+      },
+      {
+        "Denmark": 45071.0233653229,
+        "Finland": 36465.6972375822,
+        "France": 37192.511516323,
+        "Germany": 44181.0579403052,
+        "Iceland": 45194.7254758201,
+        "Japan": 38395.3156041899,
+        "Norway": 35800.6607228073,
+        "Sweden": 31605.1888243566,
+        "United Kingdom": 35830.1647083533,
+        "United States": 50119.1140747133,
+        "datatype": "wages",
+        "year": "1997-01-01T00:00:00"
+      },
+      {
+        "Denmark": 45870.5836675736,
+        "Finland": 37436.0651233826,
+        "France": 37763.6773965466,
+        "Germany": 44722.7416990888,
+        "Iceland": 49877.2209216982,
+        "Japan": 38243.9754585059,
+        "Norway": 37113.1920828553,
+        "Sweden": 32653.3016999684,
+        "United Kingdom": 36453.8173807945,
+        "United States": 52182.1733087712,
+        "datatype": "wages",
+        "year": "1998-01-01T00:00:00"
+      },
+      {
+        "Denmark": 46386.7769660791,
+        "Finland": 38311.2668588559,
+        "France": 38596.8540006405,
+        "Germany": 45326.9059987319,
+        "Iceland": 52210.1644555739,
+        "Japan": 38153.5794870025,
+        "Norway": 38305.8466480395,
+        "Sweden": 33329.4125656562,
+        "United Kingdom": 38445.6171282191,
+        "United States": 53548.6332092189,
+        "datatype": "wages",
+        "year": "1999-01-01T00:00:00"
+      },
+      {
+        "Denmark": 46360.0732481077,
+        "Finland": 38969.023992333,
+        "France": 38782.1155835131,
+        "Germany": 45583.7242601558,
+        "Iceland": 53810.3437248817,
+        "Japan": 38364.856589581,
+        "Norway": 38647.3115405666,
+        "Sweden": 34388.9484187077,
+        "United Kingdom": 40206.6024960548,
+        "United States": 55365.7025952572,
+        "datatype": "wages",
+        "year": "2000-01-01T00:00:00"
+      },
+      {
+        "Denmark": 46668.8445134325,
+        "Finland": 39174.0057562552,
+        "France": 39027.4067529322,
+        "Germany": 45929.7420664934,
+        "Iceland": 53368.731465813,
+        "Japan": 37982.378425898,
+        "Norway": 39589.4962708671,
+        "Sweden": 34796.8879758431,
+        "United Kingdom": 41898.2782726161,
+        "United States": 55834.5992657734,
+        "datatype": "wages",
+        "year": "2001-01-01T00:00:00"
+      },
+      {
+        "Denmark": 47742.3257266107,
+        "Finland": 39384.4608592046,
+        "France": 40080.973866655,
+        "Germany": 46206.9408845997,
+        "Iceland": 54902.6276430351,
+        "Japan": 37228.2165697485,
+        "Norway": 41235.5600866555,
+        "Sweden": 35251.8533426745,
+        "United Kingdom": 42571.4758568034,
+        "United States": 56274.6593658597,
+        "datatype": "wages",
+        "year": "2002-01-01T00:00:00"
+      },
+      {
+        "Denmark": 48934.1832474341,
+        "Finland": 40132.9575901584,
+        "France": 40405.5055288181,
+        "Germany": 46361.3964338503,
+        "Iceland": 53534.4376803548,
+        "Japan": 37254.9208747604,
+        "Norway": 41789.0034194485,
+        "Sweden": 35555.7494602559,
+        "United Kingdom": 43830.509995676,
+        "United States": 56965.5637217267,
+        "datatype": "wages",
+        "year": "2003-01-01T00:00:00"
+      },
+      {
+        "Denmark": 50030.8665366715,
+        "Finland": 41457.5046170601,
+        "France": 41068.0709646522,
+        "Germany": 46363.3180368231,
+        "Iceland": 56828.0159623286,
+        "Japan": 37882.4772227691,
+        "Norway": 43170.2950001049,
+        "Sweden": 36723.844979794,
+        "United Kingdom": 45195.1809081212,
+        "United States": 58023.4299368342,
+        "datatype": "wages",
+        "year": "2004-01-01T00:00:00"
+      },
+      {
+        "Denmark": 50878.9370953566,
+        "Finland": 42356.7698606704,
+        "France": 41561.9605502097,
+        "Germany": 46553.2012381216,
+        "Iceland": 61187.4395544976,
+        "Japan": 38879.1583322769,
+        "Norway": 44438.1478169816,
+        "Sweden": 37649.7667406336,
+        "United Kingdom": 45368.5410774796,
+        "United States": 58092.3516733398,
+        "datatype": "wages",
+        "year": "2005-01-01T00:00:00"
+      },
+      {
+        "Denmark": 51745.2357634446,
+        "Finland": 43246.501132967,
+        "France": 42027.7128210275,
+        "Germany": 46546.4614941587,
+        "Iceland": 64423.8171909718,
+        "Japan": 38849.6501536857,
+        "Norway": 46254.7534029092,
+        "Sweden": 38701.2384294153,
+        "United Kingdom": 46546.2850599137,
+        "United States": 59013.8598788514,
+        "datatype": "wages",
+        "year": "2006-01-01T00:00:00"
+      },
+      {
+        "Denmark": 52309.1761870157,
+        "Finland": 43831.342288816,
+        "France": 42184.5668291047,
+        "Germany": 46415.4101855891,
+        "Iceland": 66350.4674888443,
+        "Japan": 38742.5243214359,
+        "Norway": 48334.8041381789,
+        "Sweden": 40054.091743044,
+        "United Kingdom": 47824.786055827,
+        "United States": 60187.9847451486,
+        "datatype": "wages",
+        "year": "2007-01-01T00:00:00"
+      },
+      {
+        "Denmark": 53017.211201936,
+        "Finland": 44204.2691129914,
+        "France": 42102.2967323037,
+        "Germany": 46632.7284690971,
+        "Iceland": 58829.1570594322,
+        "Japan": 38448.6521054355,
+        "Norway": 49404.325369661,
+        "Sweden": 40860.7815199667,
+        "United Kingdom": 46686.9062248829,
+        "United States": 59986.2658883191,
+        "datatype": "wages",
+        "year": "2008-01-01T00:00:00"
+      },
+      {
+        "Denmark": 54302.6336273298,
+        "Finland": 44586.3665579335,
+        "France": 43441.63850086,
+        "Germany": 46645.9630877211,
+        "Iceland": 49776.7731139144,
+        "Japan": 37950.3401302869,
+        "Norway": 49918.71748337,
+        "Sweden": 41016.9656550011,
+        "United Kingdom": 46884.351280431,
+        "United States": 60471.1085097494,
+        "datatype": "wages",
+        "year": "2009-01-01T00:00:00"
+      },
+      {
+        "Denmark": 54928.3171318432,
+        "Finland": 45211.0434454361,
+        "France": 44324.9511611263,
+        "Germany": 47054.1004687921,
+        "Iceland": 51234.3670935655,
+        "Japan": 38085.3227150022,
+        "Norway": 50585.6498312246,
+        "Sweden": 41533.8891289532,
+        "United Kingdom": 46863.4384482268,
+        "United States": 61047.8742268296,
+        "datatype": "wages",
+        "year": "2010-01-01T00:00:00"
+      },
+      {
+        "Denmark": 54643.7976544649,
+        "Finland": 45233.4544959247,
+        "France": 44255.6792311367,
+        "Germany": 48025.5752898189,
+        "Iceland": 53452.4025297103,
+        "Japan": 38699.6924564557,
+        "Norway": 52346.751164501,
+        "Sweden": 42160.8183463129,
+        "United Kingdom": 46035.8518125816,
+        "United States": 61131.6800040717,
+        "datatype": "wages",
+        "year": "2011-01-01T00:00:00"
+      },
+      {
+        "Denmark": 54570.0756807942,
+        "Finland": 45280.204117747,
+        "France": 44552.4695964852,
+        "Germany": 48682.5488749339,
+        "Iceland": 53136.7974672545,
+        "Japan": 38057.7572380073,
+        "Norway": 53776.6554149845,
+        "Sweden": 43079.8807886723,
+        "United Kingdom": 45454.71128928,
+        "United States": 61634.2010319128,
+        "datatype": "wages",
+        "year": "2012-01-01T00:00:00"
+      },
+      {
+        "Denmark": 54924.954335293,
+        "Finland": 44836.441529201,
+        "France": 44926.6938878833,
+        "Germany": 49158.7072422073,
+        "Iceland": 53965.5749004533,
+        "Japan": 38103.0661949982,
+        "Norway": 54852.5811702615,
+        "Sweden": 43552.2269056241,
+        "United Kingdom": 46052.6231779979,
+        "United States": 61346.9094055764,
+        "datatype": "wages",
+        "year": "2013-01-01T00:00:00"
+      },
+      {
+        "Denmark": 55975.8913486461,
+        "Finland": 44837.4445180097,
+        "France": 45236.7715370061,
+        "Germany": 50001.0288195043,
+        "Iceland": 54735.9069150361,
+        "Japan": 37438.1589646497,
+        "Norway": 55120.5236007334,
+        "Sweden": 44066.0424889516,
+        "United Kingdom": 46155.8151440147,
+        "United States": 62263.4103581447,
+        "datatype": "wages",
+        "year": "2014-01-01T00:00:00"
+      },
+      {
+        "Denmark": 56959.8436897856,
+        "Finland": 45194.1776085612,
+        "France": 45679.6770089977,
+        "Germany": 51171.5310086437,
+        "Iceland": 58376.5435915252,
+        "Japan": 37264.6607392546,
+        "Norway": 55403.9267886579,
+        "Sweden": 44719.090412452,
+        "United Kingdom": 46646.9164350875,
+        "United States": 63844.5557683489,
+        "datatype": "wages",
+        "year": "2015-01-01T00:00:00"
+      },
+      {
+        "Denmark": 57043.3903425065,
+        "Finland": 45588.3582599615,
+        "France": 46214.2570421327,
+        "Germany": 51901.8195564621,
+        "Iceland": 62949.0161045306,
+        "Japan": 37810.3885092352,
+        "Norway": 54224.1509763159,
+        "Sweden": 45423.0343565982,
+        "United Kingdom": 47180.7786047186,
+        "United States": 63941.8570447087,
+        "datatype": "wages",
+        "year": "2016-01-01T00:00:00"
+      },
+      {
+        "Denmark": 57355.1151555023,
+        "Finland": 45338.7564886381,
+        "France": 46852.3529811014,
+        "Germany": 52454.1460775367,
+        "Iceland": 69050.6369122972,
+        "Japan": 37972.2553240193,
+        "Norway": 54117.1054195178,
+        "Sweden": 45680.5134360005,
+        "United Kingdom": 47145.5619187673,
+        "United States": 64618.4522648294,
+        "datatype": "wages",
+        "year": "2017-01-01T00:00:00"
+      },
+      {
+        "Denmark": 57794.204719732,
+        "Finland": 45770.8422682442,
+        "France": 46866.5200153424,
+        "Germany": 53220.549493405,
+        "Iceland": 72465.7719215692,
+        "Japan": 38461.9696054671,
+        "Norway": 54690.6441797876,
+        "Sweden": 45916.5839424171,
+        "United Kingdom": 47229.2283063641,
+        "United States": 65302.9401423,
+        "datatype": "wages",
+        "year": "2018-01-01T00:00:00"
+      },
+      {
+        "Denmark": 57967.3139494302,
+        "Finland": 46248.5762458008,
+        "France": 47112.3891580859,
+        "Germany": 54041.3564696298,
+        "Iceland": 70391.1575943075,
+        "Japan": 39041.1371184532,
+        "Norway": 55752.92248311,
+        "Sweden": 46417.9753348127,
+        "United Kingdom": 47936.6285671556,
+        "United States": 66382.5055522274,
+        "datatype": "wages",
+        "year": "2019-01-01T00:00:00"
+      },
+      {
+        "Denmark": 58429.6521388968,
+        "Finland": 46229.570198901,
+        "France": 45580.7045304337,
+        "Germany": 53744.9986010753,
+        "Iceland": 67488.0131063208,
+        "Japan": 38514.8650629664,
+        "Norway": 55779.8295229485,
+        "Sweden": 47020.4898878129,
+        "United Kingdom": 47147.2016194233,
+        "United States": 69391.8064217965,
+        "datatype": "wages",
+        "year": "2020-01-01T00:00:00"
+      }
+    ],
+    "data-ea73f300cf95ad52d330d835b9d12846": [
+      {
+        "country": "Denmark",
+        "datatype": "wage_per_hour",
+        "value": 30.149171965863566,
+        "year": "1992-01-01T00:00:00"
+      },
+      {
+        "country": "Denmark",
+        "datatype": "wage_per_hour",
+        "value": 30.54167258499524,
+        "year": "1993-01-01T00:00:00"
+      },
+      {
+        "country": "Denmark",
+        "datatype": "wage_per_hour",
+        "value": 30.324134998805615,
+        "year": "1994-01-01T00:00:00"
+      },
+      {
+        "country": "Denmark",
+        "datatype": "wage_per_hour",
+        "value": 30.698765670001478,
+        "year": "1995-01-01T00:00:00"
+      },
+      {
+        "country": "Denmark",
+        "datatype": "wage_per_hour",
+        "value": 31.41573342999214,
+        "year": "1996-01-01T00:00:00"
+      },
+      {
+        "country": "Denmark",
+        "datatype": "wage_per_hour",
+        "value": 31.562341292242927,
+        "year": "1997-01-01T00:00:00"
+      },
+      {
+        "country": "Denmark",
+        "datatype": "wage_per_hour",
+        "value": 31.832466112126024,
+        "year": "1998-01-01T00:00:00"
+      },
+      {
+        "country": "Denmark",
+        "datatype": "wage_per_hour",
+        "value": 31.85905011406532,
+        "year": "1999-01-01T00:00:00"
+      },
+      {
+        "country": "Denmark",
+        "datatype": "wage_per_hour",
+        "value": 31.62351517606255,
+        "year": "2000-01-01T00:00:00"
+      },
+      {
+        "country": "Denmark",
+        "datatype": "wage_per_hour",
+        "value": 31.769124924052075,
+        "year": "2001-01-01T00:00:00"
+      },
+      {
+        "country": "Denmark",
+        "datatype": "wage_per_hour",
+        "value": 32.633168644299865,
+        "year": "2002-01-01T00:00:00"
+      },
+      {
+        "country": "Denmark",
+        "datatype": "wage_per_hour",
+        "value": 33.56253995022915,
+        "year": "2003-01-01T00:00:00"
+      },
+      {
+        "country": "Denmark",
+        "datatype": "wage_per_hour",
+        "value": 34.31472327618073,
+        "year": "2004-01-01T00:00:00"
+      },
+      {
+        "country": "Denmark",
+        "datatype": "wage_per_hour",
+        "value": 35.06473955572474,
+        "year": "2005-01-01T00:00:00"
+      },
+      {
+        "country": "Denmark",
+        "datatype": "wage_per_hour",
+        "value": 35.539310277091076,
+        "year": "2006-01-01T00:00:00"
+      },
+      {
+        "country": "Denmark",
+        "datatype": "wage_per_hour",
+        "value": 36.50326321494466,
+        "year": "2007-01-01T00:00:00"
+      },
+      {
+        "country": "Denmark",
+        "datatype": "wage_per_hour",
+        "value": 37.07497286848671,
+        "year": "2008-01-01T00:00:00"
+      },
+      {
+        "country": "Denmark",
+        "datatype": "wage_per_hour",
+        "value": 38.322253794869304,
+        "year": "2009-01-01T00:00:00"
+      },
+      {
+        "country": "Denmark",
+        "datatype": "wage_per_hour",
+        "value": 38.627508531535305,
+        "year": "2010-01-01T00:00:00"
+      },
+      {
+        "country": "Denmark",
+        "datatype": "wage_per_hour",
+        "value": 38.026303169425816,
+        "year": "2011-01-01T00:00:00"
+      },
+      {
+        "country": "Denmark",
+        "datatype": "wage_per_hour",
+        "value": 38.34861256556163,
+        "year": "2012-01-01T00:00:00"
+      },
+      {
+        "country": "Denmark",
+        "datatype": "wage_per_hour",
+        "value": 38.51679827159397,
+        "year": "2013-01-01T00:00:00"
+      },
+      {
+        "country": "Denmark",
+        "datatype": "wage_per_hour",
+        "value": 39.586910430442785,
+        "year": "2014-01-01T00:00:00"
+      },
+      {
+        "country": "Denmark",
+        "datatype": "wage_per_hour",
+        "value": 40.48318670205089,
+        "year": "2015-01-01T00:00:00"
+      },
+      {
+        "country": "Denmark",
+        "datatype": "wage_per_hour",
+        "value": 40.39900165899894,
+        "year": "2016-01-01T00:00:00"
+      },
+      {
+        "country": "Denmark",
+        "datatype": "wage_per_hour",
+        "value": 40.85122162072813,
+        "year": "2017-01-01T00:00:00"
+      },
+      {
+        "country": "Denmark",
+        "datatype": "wage_per_hour",
+        "value": 41.849532744194065,
+        "year": "2018-01-01T00:00:00"
+      },
+      {
+        "country": "Denmark",
+        "datatype": "wage_per_hour",
+        "value": 41.974883381194935,
+        "year": "2019-01-01T00:00:00"
+      },
+      {
+        "country": "Denmark",
+        "datatype": "wage_per_hour",
+        "value": 43.40984557124577,
+        "year": "2020-01-01T00:00:00"
+      },
+      {
+        "country": "Finland",
+        "datatype": "wage_per_hour",
+        "value": 21.1801892383431,
+        "year": "1992-01-01T00:00:00"
+      },
+      {
+        "country": "Finland",
+        "datatype": "wage_per_hour",
+        "value": 20.454973625825502,
+        "year": "1993-01-01T00:00:00"
+      },
+      {
+        "country": "Finland",
+        "datatype": "wage_per_hour",
+        "value": 20.50298123868103,
+        "year": "1994-01-01T00:00:00"
+      },
+      {
+        "country": "Finland",
+        "datatype": "wage_per_hour",
+        "value": 21.235581624826892,
+        "year": "1995-01-01T00:00:00"
+      },
+      {
+        "country": "Finland",
+        "datatype": "wage_per_hour",
+        "value": 21.74900533686591,
+        "year": "1996-01-01T00:00:00"
+      },
+      {
+        "country": "Finland",
+        "datatype": "wage_per_hour",
+        "value": 21.822679376171276,
+        "year": "1997-01-01T00:00:00"
+      },
+      {
+        "country": "Finland",
+        "datatype": "wage_per_hour",
+        "value": 22.538269189273088,
+        "year": "1998-01-01T00:00:00"
+      },
+      {
+        "country": "Finland",
+        "datatype": "wage_per_hour",
+        "value": 23.065181733206444,
+        "year": "1999-01-01T00:00:00"
+      },
+      {
+        "country": "Finland",
+        "datatype": "wage_per_hour",
+        "value": 23.617590298383636,
+        "year": "2000-01-01T00:00:00"
+      },
+      {
+        "country": "Finland",
+        "datatype": "wage_per_hour",
+        "value": 23.944991293554526,
+        "year": "2001-01-01T00:00:00"
+      },
+      {
+        "country": "Finland",
+        "datatype": "wage_per_hour",
+        "value": 24.1919292746957,
+        "year": "2002-01-01T00:00:00"
+      },
+      {
+        "country": "Finland",
+        "datatype": "wage_per_hour",
+        "value": 24.727638687713124,
+        "year": "2003-01-01T00:00:00"
+      },
+      {
+        "country": "Finland",
+        "datatype": "wage_per_hour",
+        "value": 25.528020084396612,
+        "year": "2004-01-01T00:00:00"
+      },
+      {
+        "country": "Finland",
+        "datatype": "wage_per_hour",
+        "value": 26.25962173631147,
+        "year": "2005-01-01T00:00:00"
+      },
+      {
+        "country": "Finland",
+        "datatype": "wage_per_hour",
+        "value": 26.894590256820276,
+        "year": "2006-01-01T00:00:00"
+      },
+      {
+        "country": "Finland",
+        "datatype": "wage_per_hour",
+        "value": 27.309247531972584,
+        "year": "2007-01-01T00:00:00"
+      },
+      {
+        "country": "Finland",
+        "datatype": "wage_per_hour",
+        "value": 27.61041168831443,
+        "year": "2008-01-01T00:00:00"
+      },
+      {
+        "country": "Finland",
+        "datatype": "wage_per_hour",
+        "value": 28.21921934046424,
+        "year": "2009-01-01T00:00:00"
+      },
+      {
+        "country": "Finland",
+        "datatype": "wage_per_hour",
+        "value": 28.52431763118997,
+        "year": "2010-01-01T00:00:00"
+      },
+      {
+        "country": "Finland",
+        "datatype": "wage_per_hour",
+        "value": 28.66505354621337,
+        "year": "2011-01-01T00:00:00"
+      },
+      {
+        "country": "Finland",
+        "datatype": "wage_per_hour",
+        "value": 28.87768119754273,
+        "year": "2012-01-01T00:00:00"
+      },
+      {
+        "country": "Finland",
+        "datatype": "wage_per_hour",
+        "value": 28.741308672564745,
+        "year": "2013-01-01T00:00:00"
+      },
+      {
+        "country": "Finland",
+        "datatype": "wage_per_hour",
+        "value": 28.77884757253511,
+        "year": "2014-01-01T00:00:00"
+      },
+      {
+        "country": "Finland",
+        "datatype": "wage_per_hour",
+        "value": 29.06377981257955,
+        "year": "2015-01-01T00:00:00"
+      },
+      {
+        "country": "Finland",
+        "datatype": "wage_per_hour",
+        "value": 29.317272192901285,
+        "year": "2016-01-01T00:00:00"
+      },
+      {
+        "country": "Finland",
+        "datatype": "wage_per_hour",
+        "value": 29.26969431158044,
+        "year": "2017-01-01T00:00:00"
+      },
+      {
+        "country": "Finland",
+        "datatype": "wage_per_hour",
+        "value": 29.60597818127051,
+        "year": "2018-01-01T00:00:00"
+      },
+      {
+        "country": "Finland",
+        "datatype": "wage_per_hour",
+        "value": 30.051056689929048,
+        "year": "2019-01-01T00:00:00"
+      },
+      {
+        "country": "Finland",
+        "datatype": "wage_per_hour",
+        "value": 30.195669626976485,
+        "year": "2020-01-01T00:00:00"
+      },
+      {
+        "country": "France",
+        "datatype": "wage_per_hour",
+        "value": 21.759620190017124,
+        "year": "1992-01-01T00:00:00"
+      },
+      {
+        "country": "France",
+        "datatype": "wage_per_hour",
+        "value": 22.1200838920477,
+        "year": "1993-01-01T00:00:00"
+      },
+      {
+        "country": "France",
+        "datatype": "wage_per_hour",
+        "value": 22.265957785473443,
+        "year": "1994-01-01T00:00:00"
+      },
+      {
+        "country": "France",
+        "datatype": "wage_per_hour",
+        "value": 22.90867933504884,
+        "year": "1995-01-01T00:00:00"
+      },
+      {
+        "country": "France",
+        "datatype": "wage_per_hour",
+        "value": 23.03018081953394,
+        "year": "1996-01-01T00:00:00"
+      },
+      {
+        "country": "France",
+        "datatype": "wage_per_hour",
+        "value": 23.30357864431266,
+        "year": "1997-01-01T00:00:00"
+      },
+      {
+        "country": "France",
+        "datatype": "wage_per_hour",
+        "value": 23.825663972584604,
+        "year": "1998-01-01T00:00:00"
+      },
+      {
+        "country": "France",
+        "datatype": "wage_per_hour",
+        "value": 24.459349810291826,
+        "year": "1999-01-01T00:00:00"
+      },
+      {
+        "country": "France",
+        "datatype": "wage_per_hour",
+        "value": 24.892243635117524,
+        "year": "2000-01-01T00:00:00"
+      },
+      {
+        "country": "France",
+        "datatype": "wage_per_hour",
+        "value": 25.375427017511182,
+        "year": "2001-01-01T00:00:00"
+      },
+      {
+        "country": "France",
+        "datatype": "wage_per_hour",
+        "value": 26.649583687935504,
+        "year": "2002-01-01T00:00:00"
+      },
+      {
+        "country": "France",
+        "datatype": "wage_per_hour",
+        "value": 26.811881571876643,
+        "year": "2003-01-01T00:00:00"
+      },
+      {
+        "country": "France",
+        "datatype": "wage_per_hour",
+        "value": 26.824344196376355,
+        "year": "2004-01-01T00:00:00"
+      },
+      {
+        "country": "France",
+        "datatype": "wage_per_hour",
+        "value": 27.129217069327478,
+        "year": "2005-01-01T00:00:00"
+      },
+      {
+        "country": "France",
+        "datatype": "wage_per_hour",
+        "value": 27.74106456833498,
+        "year": "2006-01-01T00:00:00"
+      },
+      {
+        "country": "France",
+        "datatype": "wage_per_hour",
+        "value": 27.44604217898809,
+        "year": "2007-01-01T00:00:00"
+      },
+      {
+        "country": "France",
+        "datatype": "wage_per_hour",
+        "value": 27.285999178421065,
+        "year": "2008-01-01T00:00:00"
+      },
+      {
+        "country": "France",
+        "datatype": "wage_per_hour",
+        "value": 28.374682234395816,
+        "year": "2009-01-01T00:00:00"
+      },
+      {
+        "country": "France",
+        "datatype": "wage_per_hour",
+        "value": 28.782435818913182,
+        "year": "2010-01-01T00:00:00"
+      },
+      {
+        "country": "France",
+        "datatype": "wage_per_hour",
+        "value": 28.62592447033422,
+        "year": "2011-01-01T00:00:00"
+      },
+      {
+        "country": "France",
+        "datatype": "wage_per_hour",
+        "value": 28.91140142536353,
+        "year": "2012-01-01T00:00:00"
+      },
+      {
+        "country": "France",
+        "datatype": "wage_per_hour",
+        "value": 29.440821682754457,
+        "year": "2013-01-01T00:00:00"
+      },
+      {
+        "country": "France",
+        "datatype": "wage_per_hour",
+        "value": 29.800244754285966,
+        "year": "2014-01-01T00:00:00"
+      },
+      {
+        "country": "France",
+        "datatype": "wage_per_hour",
+        "value": 30.072203429228242,
+        "year": "2015-01-01T00:00:00"
+      },
+      {
+        "country": "France",
+        "datatype": "wage_per_hour",
+        "value": 30.36416362820808,
+        "year": "2016-01-01T00:00:00"
+      },
+      {
+        "country": "France",
+        "datatype": "wage_per_hour",
+        "value": 31.06919958958979,
+        "year": "2017-01-01T00:00:00"
+      },
+      {
+        "country": "France",
+        "datatype": "wage_per_hour",
+        "value": 30.955429336421666,
+        "year": "2018-01-01T00:00:00"
+      },
+      {
+        "country": "France",
+        "datatype": "wage_per_hour",
+        "value": 31.1796089729225,
+        "year": "2019-01-01T00:00:00"
+      },
+      {
+        "country": "France",
+        "datatype": "wage_per_hour",
+        "value": 32.51120151956755,
+        "year": "2020-01-01T00:00:00"
+      },
+      {
+        "country": "Germany",
+        "datatype": "wage_per_hour",
+        "value": 27.19427808498729,
+        "year": "1992-01-01T00:00:00"
+      },
+      {
+        "country": "Germany",
+        "datatype": "wage_per_hour",
+        "value": 27.817332012413516,
+        "year": "1993-01-01T00:00:00"
+      },
+      {
+        "country": "Germany",
+        "datatype": "wage_per_hour",
+        "value": 27.943434187137967,
+        "year": "1994-01-01T00:00:00"
+      },
+      {
+        "country": "Germany",
+        "datatype": "wage_per_hour",
+        "value": 28.650814441083106,
+        "year": "1995-01-01T00:00:00"
+      },
+      {
+        "country": "Germany",
+        "datatype": "wage_per_hour",
+        "value": 29.247748529603772,
+        "year": "1996-01-01T00:00:00"
+      },
+      {
+        "country": "Germany",
+        "datatype": "wage_per_hour",
+        "value": 29.303613411358494,
+        "year": "1997-01-01T00:00:00"
+      },
+      {
+        "country": "Germany",
+        "datatype": "wage_per_hour",
+        "value": 29.72598318317634,
+        "year": "1998-01-01T00:00:00"
+      },
+      {
+        "country": "Germany",
+        "datatype": "wage_per_hour",
+        "value": 30.39014817213,
+        "year": "1999-01-01T00:00:00"
+      },
+      {
+        "country": "Germany",
+        "datatype": "wage_per_hour",
+        "value": 31.096066757729584,
+        "year": "2000-01-01T00:00:00"
+      },
+      {
+        "country": "Germany",
+        "datatype": "wage_per_hour",
+        "value": 31.49756005108586,
+        "year": "2001-01-01T00:00:00"
+      },
+      {
+        "country": "Germany",
+        "datatype": "wage_per_hour",
+        "value": 31.891048992062736,
+        "year": "2002-01-01T00:00:00"
+      },
+      {
+        "country": "Germany",
+        "datatype": "wage_per_hour",
+        "value": 32.11957630168373,
+        "year": "2003-01-01T00:00:00"
+      },
+      {
+        "country": "Germany",
+        "datatype": "wage_per_hour",
+        "value": 32.13872039153133,
+        "year": "2004-01-01T00:00:00"
+      },
+      {
+        "country": "Germany",
+        "datatype": "wage_per_hour",
+        "value": 32.500140490171454,
+        "year": "2005-01-01T00:00:00"
+      },
+      {
+        "country": "Germany",
+        "datatype": "wage_per_hour",
+        "value": 32.030320323533374,
+        "year": "2006-01-01T00:00:00"
+      },
+      {
+        "country": "Germany",
+        "datatype": "wage_per_hour",
+        "value": 31.920370115940514,
+        "year": "2007-01-01T00:00:00"
+      },
+      {
+        "country": "Germany",
+        "datatype": "wage_per_hour",
+        "value": 32.22049918406488,
+        "year": "2008-01-01T00:00:00"
+      },
+      {
+        "country": "Germany",
+        "datatype": "wage_per_hour",
+        "value": 33.19997372791538,
+        "year": "2009-01-01T00:00:00"
+      },
+      {
+        "country": "Germany",
+        "datatype": "wage_per_hour",
+        "value": 33.00420878781799,
+        "year": "2010-01-01T00:00:00"
+      },
+      {
+        "country": "Germany",
+        "datatype": "wage_per_hour",
+        "value": 33.65728172248854,
+        "year": "2011-01-01T00:00:00"
+      },
+      {
+        "country": "Germany",
+        "datatype": "wage_per_hour",
+        "value": 34.57567391685646,
+        "year": "2012-01-01T00:00:00"
+      },
+      {
+        "country": "Germany",
+        "datatype": "wage_per_hour",
+        "value": 35.20136573018783,
+        "year": "2013-01-01T00:00:00"
+      },
+      {
+        "country": "Germany",
+        "datatype": "wage_per_hour",
+        "value": 35.70481920844352,
+        "year": "2014-01-01T00:00:00"
+      },
+      {
+        "country": "Germany",
+        "datatype": "wage_per_hour",
+        "value": 36.52500428882491,
+        "year": "2015-01-01T00:00:00"
+      },
+      {
+        "country": "Germany",
+        "datatype": "wage_per_hour",
+        "value": 37.18960988568508,
+        "year": "2016-01-01T00:00:00"
+      },
+      {
+        "country": "Germany",
+        "datatype": "wage_per_hour",
+        "value": 37.76124546651552,
+        "year": "2017-01-01T00:00:00"
+      },
+      {
+        "country": "Germany",
+        "datatype": "wage_per_hour",
+        "value": 38.37374684072752,
+        "year": "2018-01-01T00:00:00"
+      },
+      {
+        "country": "Germany",
+        "datatype": "wage_per_hour",
+        "value": 39.0811082366429,
+        "year": "2019-01-01T00:00:00"
+      },
+      {
+        "country": "Germany",
+        "datatype": "wage_per_hour",
+        "value": 40.35818773077667,
+        "year": "2020-01-01T00:00:00"
+      },
+      {
+        "country": "Japan",
+        "datatype": "wage_per_hour",
+        "value": 19.075358891669463,
+        "year": "1992-01-01T00:00:00"
+      },
+      {
+        "country": "Japan",
+        "datatype": "wage_per_hour",
+        "value": 19.489589708402992,
+        "year": "1993-01-01T00:00:00"
+      },
+      {
+        "country": "Japan",
+        "datatype": "wage_per_hour",
+        "value": 19.759910320878927,
+        "year": "1994-01-01T00:00:00"
+      },
+      {
+        "country": "Japan",
+        "datatype": "wage_per_hour",
+        "value": 20.134890716967465,
+        "year": "1995-01-01T00:00:00"
+      },
+      {
+        "country": "Japan",
+        "datatype": "wage_per_hour",
+        "value": 20.130335423717284,
+        "year": "1996-01-01T00:00:00"
+      },
+      {
+        "country": "Japan",
+        "datatype": "wage_per_hour",
+        "value": 20.587300592058927,
+        "year": "1997-01-01T00:00:00"
+      },
+      {
+        "country": "Japan",
+        "datatype": "wage_per_hour",
+        "value": 20.762201660426655,
+        "year": "1998-01-01T00:00:00"
+      },
+      {
+        "country": "Japan",
+        "datatype": "wage_per_hour",
+        "value": 21.079325683426795,
+        "year": "1999-01-01T00:00:00"
+      },
+      {
+        "country": "Japan",
+        "datatype": "wage_per_hour",
+        "value": 21.06801569993465,
+        "year": "2000-01-01T00:00:00"
+      },
+      {
+        "country": "Japan",
+        "datatype": "wage_per_hour",
+        "value": 20.996339649473743,
+        "year": "2001-01-01T00:00:00"
+      },
+      {
+        "country": "Japan",
+        "datatype": "wage_per_hour",
+        "value": 20.705348481506398,
+        "year": "2002-01-01T00:00:00"
+      },
+      {
+        "country": "Japan",
+        "datatype": "wage_per_hour",
+        "value": 20.708683087693384,
+        "year": "2003-01-01T00:00:00"
+      },
+      {
+        "country": "Japan",
+        "datatype": "wage_per_hour",
+        "value": 21.198924019456687,
+        "year": "2004-01-01T00:00:00"
+      },
+      {
+        "country": "Japan",
+        "datatype": "wage_per_hour",
+        "value": 21.903751173113747,
+        "year": "2005-01-01T00:00:00"
+      },
+      {
+        "country": "Japan",
+        "datatype": "wage_per_hour",
+        "value": 21.7767097274023,
+        "year": "2006-01-01T00:00:00"
+      },
+      {
+        "country": "Japan",
+        "datatype": "wage_per_hour",
+        "value": 21.704495418171373,
+        "year": "2007-01-01T00:00:00"
+      },
+      {
+        "country": "Japan",
+        "datatype": "wage_per_hour",
+        "value": 21.710136705497177,
+        "year": "2008-01-01T00:00:00"
+      },
+      {
+        "country": "Japan",
+        "datatype": "wage_per_hour",
+        "value": 22.141388640774156,
+        "year": "2009-01-01T00:00:00"
+      },
+      {
+        "country": "Japan",
+        "datatype": "wage_per_hour",
+        "value": 21.97652782169775,
+        "year": "2010-01-01T00:00:00"
+      },
+      {
+        "country": "Japan",
+        "datatype": "wage_per_hour",
+        "value": 22.395655356745195,
+        "year": "2011-01-01T00:00:00"
+      },
+      {
+        "country": "Japan",
+        "datatype": "wage_per_hour",
+        "value": 21.80960300172338,
+        "year": "2012-01-01T00:00:00"
+      },
+      {
+        "country": "Japan",
+        "datatype": "wage_per_hour",
+        "value": 21.974086617646023,
+        "year": "2013-01-01T00:00:00"
+      },
+      {
+        "country": "Japan",
+        "datatype": "wage_per_hour",
+        "value": 21.65307054057241,
+        "year": "2014-01-01T00:00:00"
+      },
+      {
+        "country": "Japan",
+        "datatype": "wage_per_hour",
+        "value": 21.678103978623966,
+        "year": "2015-01-01T00:00:00"
+      },
+      {
+        "country": "Japan",
+        "datatype": "wage_per_hour",
+        "value": 22.05973658648495,
+        "year": "2016-01-01T00:00:00"
+      },
+      {
+        "country": "Japan",
+        "datatype": "wage_per_hour",
+        "value": 22.21899082739573,
+        "year": "2017-01-01T00:00:00"
+      },
+      {
+        "country": "Japan",
+        "datatype": "wage_per_hour",
+        "value": 22.89402952706375,
+        "year": "2018-01-01T00:00:00"
+      },
+      {
+        "country": "Japan",
+        "datatype": "wage_per_hour",
+        "value": 23.74765031536083,
+        "year": "2019-01-01T00:00:00"
+      },
+      {
+        "country": "Japan",
+        "datatype": "wage_per_hour",
+        "value": 24.101918061931414,
+        "year": "2020-01-01T00:00:00"
+      },
+      {
+        "country": "Norway",
+        "datatype": "wage_per_hour",
+        "value": 21.659697127698365,
+        "year": "1992-01-01T00:00:00"
+      },
+      {
+        "country": "Norway",
+        "datatype": "wage_per_hour",
+        "value": 21.914204385699232,
+        "year": "1993-01-01T00:00:00"
+      },
+      {
+        "country": "Norway",
+        "datatype": "wage_per_hour",
+        "value": 22.387670857720796,
+        "year": "1994-01-01T00:00:00"
+      },
+      {
+        "country": "Norway",
+        "datatype": "wage_per_hour",
+        "value": 22.85798607159894,
+        "year": "1995-01-01T00:00:00"
+      },
+      {
+        "country": "Norway",
+        "datatype": "wage_per_hour",
+        "value": 23.622674899766963,
+        "year": "1996-01-01T00:00:00"
+      },
+      {
+        "country": "Norway",
+        "datatype": "wage_per_hour",
+        "value": 24.22892577342129,
+        "year": "1997-01-01T00:00:00"
+      },
+      {
+        "country": "Norway",
+        "datatype": "wage_per_hour",
+        "value": 25.152959730840596,
+        "year": "1998-01-01T00:00:00"
+      },
+      {
+        "country": "Norway",
+        "datatype": "wage_per_hour",
+        "value": 25.980633917552563,
+        "year": "1999-01-01T00:00:00"
+      },
+      {
+        "country": "Norway",
+        "datatype": "wage_per_hour",
+        "value": 26.532549458030072,
+        "year": "2000-01-01T00:00:00"
+      },
+      {
+        "country": "Norway",
+        "datatype": "wage_per_hour",
+        "value": 27.799660326428693,
+        "year": "2001-01-01T00:00:00"
+      },
+      {
+        "country": "Norway",
+        "datatype": "wage_per_hour",
+        "value": 29.313684571447716,
+        "year": "2002-01-01T00:00:00"
+      },
+      {
+        "country": "Norway",
+        "datatype": "wage_per_hour",
+        "value": 30.070521277576812,
+        "year": "2003-01-01T00:00:00"
+      },
+      {
+        "country": "Norway",
+        "datatype": "wage_per_hour",
+        "value": 30.724001850476768,
+        "year": "2004-01-01T00:00:00"
+      },
+      {
+        "country": "Norway",
+        "datatype": "wage_per_hour",
+        "value": 31.60832763139739,
+        "year": "2005-01-01T00:00:00"
+      },
+      {
+        "country": "Norway",
+        "datatype": "wage_per_hour",
+        "value": 33.05563739220267,
+        "year": "2006-01-01T00:00:00"
+      },
+      {
+        "country": "Norway",
+        "datatype": "wage_per_hour",
+        "value": 34.3873108552781,
+        "year": "2007-01-01T00:00:00"
+      },
+      {
+        "country": "Norway",
+        "datatype": "wage_per_hour",
+        "value": 35.123222927385896,
+        "year": "2008-01-01T00:00:00"
+      },
+      {
+        "country": "Norway",
+        "datatype": "wage_per_hour",
+        "value": 35.98782891166462,
+        "year": "2009-01-01T00:00:00"
+      },
+      {
+        "country": "Norway",
+        "datatype": "wage_per_hour",
+        "value": 36.25951532594409,
+        "year": "2010-01-01T00:00:00"
+      },
+      {
+        "country": "Norway",
+        "datatype": "wage_per_hour",
+        "value": 37.393207489464245,
+        "year": "2011-01-01T00:00:00"
+      },
+      {
+        "country": "Norway",
+        "datatype": "wage_per_hour",
+        "value": 38.51368288690432,
+        "year": "2012-01-01T00:00:00"
+      },
+      {
+        "country": "Norway",
+        "datatype": "wage_per_hour",
+        "value": 39.55619901223156,
+        "year": "2013-01-01T00:00:00"
+      },
+      {
+        "country": "Norway",
+        "datatype": "wage_per_hour",
+        "value": 39.66932249063217,
+        "year": "2014-01-01T00:00:00"
+      },
+      {
+        "country": "Norway",
+        "datatype": "wage_per_hour",
+        "value": 39.80453106448588,
+        "year": "2015-01-01T00:00:00"
+      },
+      {
+        "country": "Norway",
+        "datatype": "wage_per_hour",
+        "value": 38.87872013789051,
+        "year": "2016-01-01T00:00:00"
+      },
+      {
+        "country": "Norway",
+        "datatype": "wage_per_hour",
+        "value": 39.20393032419429,
+        "year": "2017-01-01T00:00:00"
+      },
+      {
+        "country": "Norway",
+        "datatype": "wage_per_hour",
+        "value": 39.65101441295411,
+        "year": "2018-01-01T00:00:00"
+      },
+      {
+        "country": "Norway",
+        "datatype": "wage_per_hour",
+        "value": 40.359723818669465,
+        "year": "2019-01-01T00:00:00"
+      },
+      {
+        "country": "Norway",
+        "datatype": "wage_per_hour",
+        "value": 40.75387559213012,
+        "year": "2020-01-01T00:00:00"
+      },
+      {
+        "country": "Sweden",
+        "datatype": "wage_per_hour",
+        "value": 19.85050403785641,
+        "year": "1992-01-01T00:00:00"
+      },
+      {
+        "country": "Sweden",
+        "datatype": "wage_per_hour",
+        "value": 19.373193078391893,
+        "year": "1993-01-01T00:00:00"
+      },
+      {
+        "country": "Sweden",
+        "datatype": "wage_per_hour",
+        "value": 19.38777285934983,
+        "year": "1994-01-01T00:00:00"
+      },
+      {
+        "country": "Sweden",
+        "datatype": "wage_per_hour",
+        "value": 19.350051005864263,
+        "year": "1995-01-01T00:00:00"
+      },
+      {
+        "country": "Sweden",
+        "datatype": "wage_per_hour",
+        "value": 20.368369171504956,
+        "year": "1996-01-01T00:00:00"
+      },
+      {
+        "country": "Sweden",
+        "datatype": "wage_per_hour",
+        "value": 21.098256892093858,
+        "year": "1997-01-01T00:00:00"
+      },
+      {
+        "country": "Sweden",
+        "datatype": "wage_per_hour",
+        "value": 21.812492785550035,
+        "year": "1998-01-01T00:00:00"
+      },
+      {
+        "country": "Sweden",
+        "datatype": "wage_per_hour",
+        "value": 22.131084040940372,
+        "year": "1999-01-01T00:00:00"
+      },
+      {
+        "country": "Sweden",
+        "datatype": "wage_per_hour",
+        "value": 23.14195721312766,
+        "year": "2000-01-01T00:00:00"
+      },
+      {
+        "country": "Sweden",
+        "datatype": "wage_per_hour",
+        "value": 23.752141963032834,
+        "year": "2001-01-01T00:00:00"
+      },
+      {
+        "country": "Sweden",
+        "datatype": "wage_per_hour",
+        "value": 24.39574625790623,
+        "year": "2002-01-01T00:00:00"
+      },
+      {
+        "country": "Sweden",
+        "datatype": "wage_per_hour",
+        "value": 24.82943398062563,
+        "year": "2003-01-01T00:00:00"
+      },
+      {
+        "country": "Sweden",
+        "datatype": "wage_per_hour",
+        "value": 25.257114841674,
+        "year": "2004-01-01T00:00:00"
+      },
+      {
+        "country": "Sweden",
+        "datatype": "wage_per_hour",
+        "value": 25.911745864166274,
+        "year": "2005-01-01T00:00:00"
+      },
+      {
+        "country": "Sweden",
+        "datatype": "wage_per_hour",
+        "value": 26.672114699803792,
+        "year": "2006-01-01T00:00:00"
+      },
+      {
+        "country": "Sweden",
+        "datatype": "wage_per_hour",
+        "value": 27.378053139469586,
+        "year": "2007-01-01T00:00:00"
+      },
+      {
+        "country": "Sweden",
+        "datatype": "wage_per_hour",
+        "value": 27.758683097803466,
+        "year": "2008-01-01T00:00:00"
+      },
+      {
+        "country": "Sweden",
+        "datatype": "wage_per_hour",
+        "value": 28.113067618232417,
+        "year": "2009-01-01T00:00:00"
+      },
+      {
+        "country": "Sweden",
+        "datatype": "wage_per_hour",
+        "value": 27.987795908998113,
+        "year": "2010-01-01T00:00:00"
+      },
+      {
+        "country": "Sweden",
+        "datatype": "wage_per_hour",
+        "value": 28.41025495034562,
+        "year": "2011-01-01T00:00:00"
+      },
+      {
+        "country": "Sweden",
+        "datatype": "wage_per_hour",
+        "value": 29.26622336186977,
+        "year": "2012-01-01T00:00:00"
+      },
+      {
+        "country": "Sweden",
+        "datatype": "wage_per_hour",
+        "value": 29.748788869961817,
+        "year": "2013-01-01T00:00:00"
+      },
+      {
+        "country": "Sweden",
+        "datatype": "wage_per_hour",
+        "value": 30.07920989006935,
+        "year": "2014-01-01T00:00:00"
+      },
+      {
+        "country": "Sweden",
+        "datatype": "wage_per_hour",
+        "value": 30.504154442327422,
+        "year": "2015-01-01T00:00:00"
+      },
+      {
+        "country": "Sweden",
+        "datatype": "wage_per_hour",
+        "value": 30.73277020067537,
+        "year": "2016-01-01T00:00:00"
+      },
+      {
+        "country": "Sweden",
+        "datatype": "wage_per_hour",
+        "value": 31.15996823738097,
+        "year": "2017-01-01T00:00:00"
+      },
+      {
+        "country": "Sweden",
+        "datatype": "wage_per_hour",
+        "value": 31.320998596464598,
+        "year": "2018-01-01T00:00:00"
+      },
+      {
+        "country": "Sweden",
+        "datatype": "wage_per_hour",
+        "value": 31.968302572185053,
+        "year": "2019-01-01T00:00:00"
+      },
+      {
+        "country": "Sweden",
+        "datatype": "wage_per_hour",
+        "value": 33.020006943688834,
+        "year": "2020-01-01T00:00:00"
+      },
+      {
+        "country": "United Kingdom",
+        "datatype": "wage_per_hour",
+        "value": 21.039825150125203,
+        "year": "1992-01-01T00:00:00"
+      },
+      {
+        "country": "United Kingdom",
+        "datatype": "wage_per_hour",
+        "value": 21.471924909729616,
+        "year": "1993-01-01T00:00:00"
+      },
+      {
+        "country": "United Kingdom",
+        "datatype": "wage_per_hour",
+        "value": 21.731883662964503,
+        "year": "1994-01-01T00:00:00"
+      },
+      {
+        "country": "United Kingdom",
+        "datatype": "wage_per_hour",
+        "value": 21.74873395095208,
+        "year": "1995-01-01T00:00:00"
+      },
+      {
+        "country": "United Kingdom",
+        "datatype": "wage_per_hour",
+        "value": 21.739073510613807,
+        "year": "1996-01-01T00:00:00"
+      },
+      {
+        "country": "United Kingdom",
+        "datatype": "wage_per_hour",
+        "value": 22.591528819894894,
+        "year": "1997-01-01T00:00:00"
+      },
+      {
+        "country": "United Kingdom",
+        "datatype": "wage_per_hour",
+        "value": 23.042868129452906,
+        "year": "1998-01-01T00:00:00"
+      },
+      {
+        "country": "United Kingdom",
+        "datatype": "wage_per_hour",
+        "value": 24.440951766191418,
+        "year": "1999-01-01T00:00:00"
+      },
+      {
+        "country": "United Kingdom",
+        "datatype": "wage_per_hour",
+        "value": 25.806548457031322,
+        "year": "2000-01-01T00:00:00"
+      },
+      {
+        "country": "United Kingdom",
+        "datatype": "wage_per_hour",
+        "value": 26.80632007205125,
+        "year": "2001-01-01T00:00:00"
+      },
+      {
+        "country": "United Kingdom",
+        "datatype": "wage_per_hour",
+        "value": 27.59006860453882,
+        "year": "2002-01-01T00:00:00"
+      },
+      {
+        "country": "United Kingdom",
+        "datatype": "wage_per_hour",
+        "value": 28.572692304873534,
+        "year": "2003-01-01T00:00:00"
+      },
+      {
+        "country": "United Kingdom",
+        "datatype": "wage_per_hour",
+        "value": 29.46230828430326,
+        "year": "2004-01-01T00:00:00"
+      },
+      {
+        "country": "United Kingdom",
+        "datatype": "wage_per_hour",
+        "value": 29.383770127901293,
+        "year": "2005-01-01T00:00:00"
+      },
+      {
+        "country": "United Kingdom",
+        "datatype": "wage_per_hour",
+        "value": 30.303571002547983,
+        "year": "2006-01-01T00:00:00"
+      },
+      {
+        "country": "United Kingdom",
+        "datatype": "wage_per_hour",
+        "value": 31.03490334576703,
+        "year": "2007-01-01T00:00:00"
+      },
+      {
+        "country": "United Kingdom",
+        "datatype": "wage_per_hour",
+        "value": 30.61436473762813,
+        "year": "2008-01-01T00:00:00"
+      },
+      {
+        "country": "United Kingdom",
+        "datatype": "wage_per_hour",
+        "value": 30.92635308735554,
+        "year": "2009-01-01T00:00:00"
+      },
+      {
+        "country": "United Kingdom",
+        "datatype": "wage_per_hour",
+        "value": 31.09717216206158,
+        "year": "2010-01-01T00:00:00"
+      },
+      {
+        "country": "United Kingdom",
+        "datatype": "wage_per_hour",
+        "value": 30.386700866390495,
+        "year": "2011-01-01T00:00:00"
+      },
+      {
+        "country": "United Kingdom",
+        "datatype": "wage_per_hour",
+        "value": 29.689556687968647,
+        "year": "2012-01-01T00:00:00"
+      },
+      {
+        "country": "United Kingdom",
+        "datatype": "wage_per_hour",
+        "value": 30.02126673924244,
+        "year": "2013-01-01T00:00:00"
+      },
+      {
+        "country": "United Kingdom",
+        "datatype": "wage_per_hour",
+        "value": 29.932435242551684,
+        "year": "2014-01-01T00:00:00"
+      },
+      {
+        "country": "United Kingdom",
+        "datatype": "wage_per_hour",
+        "value": 30.58814192464754,
+        "year": "2015-01-01T00:00:00"
+      },
+      {
+        "country": "United Kingdom",
+        "datatype": "wage_per_hour",
+        "value": 30.616988062763532,
+        "year": "2016-01-01T00:00:00"
+      },
+      {
+        "country": "United Kingdom",
+        "datatype": "wage_per_hour",
+        "value": 30.693725207530793,
+        "year": "2017-01-01T00:00:00"
+      },
+      {
+        "country": "United Kingdom",
+        "datatype": "wage_per_hour",
+        "value": 30.748195511955796,
+        "year": "2018-01-01T00:00:00"
+      },
+      {
+        "country": "United Kingdom",
+        "datatype": "wage_per_hour",
+        "value": 31.18843758435628,
+        "year": "2019-01-01T00:00:00"
+      },
+      {
+        "country": "United Kingdom",
+        "datatype": "wage_per_hour",
+        "value": 34.48954032145084,
+        "year": "2020-01-01T00:00:00"
+      },
+      {
+        "country": "United States",
+        "datatype": "wage_per_hour",
+        "value": 26.558415212963226,
+        "year": "1992-01-01T00:00:00"
+      },
+      {
+        "country": "United States",
+        "datatype": "wage_per_hour",
+        "value": 26.319239116027024,
+        "year": "1993-01-01T00:00:00"
+      },
+      {
+        "country": "United States",
+        "datatype": "wage_per_hour",
+        "value": 26.061212777592825,
+        "year": "1994-01-01T00:00:00"
+      },
+      {
+        "country": "United States",
+        "datatype": "wage_per_hour",
+        "value": 26.212923503232844,
+        "year": "1995-01-01T00:00:00"
+      },
+      {
+        "country": "United States",
+        "datatype": "wage_per_hour",
+        "value": 26.578492062908587,
+        "year": "1996-01-01T00:00:00"
+      },
+      {
+        "country": "United States",
+        "datatype": "wage_per_hour",
+        "value": 27.19431040407667,
+        "year": "1997-01-01T00:00:00"
+      },
+      {
+        "country": "United States",
+        "datatype": "wage_per_hour",
+        "value": 28.32908431529381,
+        "year": "1998-01-01T00:00:00"
+      },
+      {
+        "country": "United States",
+        "datatype": "wage_per_hour",
+        "value": 29.118343235029307,
+        "year": "1999-01-01T00:00:00"
+      },
+      {
+        "country": "United States",
+        "datatype": "wage_per_hour",
+        "value": 30.221453381690612,
+        "year": "2000-01-01T00:00:00"
+      },
+      {
+        "country": "United States",
+        "datatype": "wage_per_hour",
+        "value": 30.830811300813586,
+        "year": "2001-01-01T00:00:00"
+      },
+      {
+        "country": "United States",
+        "datatype": "wage_per_hour",
+        "value": 31.159833535913453,
+        "year": "2002-01-01T00:00:00"
+      },
+      {
+        "country": "United States",
+        "datatype": "wage_per_hour",
+        "value": 31.71801988960284,
+        "year": "2003-01-01T00:00:00"
+      },
+      {
+        "country": "United States",
+        "datatype": "wage_per_hour",
+        "value": 32.27109562671535,
+        "year": "2004-01-01T00:00:00"
+      },
+      {
+        "country": "United States",
+        "datatype": "wage_per_hour",
+        "value": 32.38146693051271,
+        "year": "2005-01-01T00:00:00"
+      },
+      {
+        "country": "United States",
+        "datatype": "wage_per_hour",
+        "value": 32.85849659178808,
+        "year": "2006-01-01T00:00:00"
+      },
+      {
+        "country": "United States",
+        "datatype": "wage_per_hour",
+        "value": 33.53091072153125,
+        "year": "2007-01-01T00:00:00"
+      },
+      {
+        "country": "United States",
+        "datatype": "wage_per_hour",
+        "value": 33.58693498786064,
+        "year": "2008-01-01T00:00:00"
+      },
+      {
+        "country": "United States",
+        "datatype": "wage_per_hour",
+        "value": 34.33907354329892,
+        "year": "2009-01-01T00:00:00"
+      },
+      {
+        "country": "United States",
+        "datatype": "wage_per_hour",
+        "value": 34.45139629053589,
+        "year": "2010-01-01T00:00:00"
+      },
+      {
+        "country": "United States",
+        "datatype": "wage_per_hour",
+        "value": 34.38227221826305,
+        "year": "2011-01-01T00:00:00"
+      },
+      {
+        "country": "United States",
+        "datatype": "wage_per_hour",
+        "value": 34.58709373283547,
+        "year": "2012-01-01T00:00:00"
+      },
+      {
+        "country": "United States",
+        "datatype": "wage_per_hour",
+        "value": 34.46455584582944,
+        "year": "2013-01-01T00:00:00"
+      },
+      {
+        "country": "United States",
+        "datatype": "wage_per_hour",
+        "value": 34.94018538616425,
+        "year": "2014-01-01T00:00:00"
+      },
+      {
+        "country": "United States",
+        "datatype": "wage_per_hour",
+        "value": 35.80737844551256,
+        "year": "2015-01-01T00:00:00"
+      },
+      {
+        "country": "United States",
+        "datatype": "wage_per_hour",
+        "value": 35.96279923774392,
+        "year": "2016-01-01T00:00:00"
+      },
+      {
+        "country": "United States",
+        "datatype": "wage_per_hour",
+        "value": 36.3433364819063,
+        "year": "2017-01-01T00:00:00"
+      },
+      {
+        "country": "United States",
+        "datatype": "wage_per_hour",
+        "value": 36.64586988905724,
+        "year": "2018-01-01T00:00:00"
+      },
+      {
+        "country": "United States",
+        "datatype": "wage_per_hour",
+        "value": 37.35650284312178,
+        "year": "2019-01-01T00:00:00"
+      },
+      {
+        "country": "United States",
+        "datatype": "wage_per_hour",
+        "value": 39.27097137622892,
+        "year": "2020-01-01T00:00:00"
+      },
+      {
+        "country": "Iceland",
+        "datatype": "wage_per_hour",
+        "value": 25.46200823922566,
+        "year": "1992-01-01T00:00:00"
+      },
+      {
+        "country": "Iceland",
+        "datatype": "wage_per_hour",
+        "value": 23.901244772746583,
+        "year": "1993-01-01T00:00:00"
+      },
+      {
+        "country": "Iceland",
+        "datatype": "wage_per_hour",
+        "value": 24.794854823716012,
+        "year": "1994-01-01T00:00:00"
+      },
+      {
+        "country": "Iceland",
+        "datatype": "wage_per_hour",
+        "value": 25.608688937812556,
+        "year": "1995-01-01T00:00:00"
+      },
+      {
+        "country": "Iceland",
+        "datatype": "wage_per_hour",
+        "value": 26.13371096923749,
+        "year": "1996-01-01T00:00:00"
+      },
+      {
+        "country": "Iceland",
+        "datatype": "wage_per_hour",
+        "value": 26.837722966639014,
+        "year": "1997-01-01T00:00:00"
+      },
+      {
+        "country": "Iceland",
+        "datatype": "wage_per_hour",
+        "value": 29.956288841860783,
+        "year": "1998-01-01T00:00:00"
+      },
+      {
+        "country": "Iceland",
+        "datatype": "wage_per_hour",
+        "value": 31.738701796701456,
+        "year": "1999-01-01T00:00:00"
+      },
+      {
+        "country": "Iceland",
+        "datatype": "wage_per_hour",
+        "value": 31.727797007595342,
+        "year": "2000-01-01T00:00:00"
+      },
+      {
+        "country": "Iceland",
+        "datatype": "wage_per_hour",
+        "value": 31.264634719281194,
+        "year": "2001-01-01T00:00:00"
+      },
+      {
+        "country": "Iceland",
+        "datatype": "wage_per_hour",
+        "value": 32.83649978650425,
+        "year": "2002-01-01T00:00:00"
+      },
+      {
+        "country": "Iceland",
+        "datatype": "wage_per_hour",
+        "value": 32.66286618691568,
+        "year": "2003-01-01T00:00:00"
+      },
+      {
+        "country": "Iceland",
+        "datatype": "wage_per_hour",
+        "value": 34.54590636007818,
+        "year": "2004-01-01T00:00:00"
+      },
+      {
+        "country": "Iceland",
+        "datatype": "wage_per_hour",
+        "value": 37.37778836560635,
+        "year": "2005-01-01T00:00:00"
+      },
+      {
+        "country": "Iceland",
+        "datatype": "wage_per_hour",
+        "value": 39.59669157404536,
+        "year": "2006-01-01T00:00:00"
+      },
+      {
+        "country": "Iceland",
+        "datatype": "wage_per_hour",
+        "value": 41.33985513323632,
+        "year": "2007-01-01T00:00:00"
+      },
+      {
+        "country": "Iceland",
+        "datatype": "wage_per_hour",
+        "value": 36.202558190419815,
+        "year": "2008-01-01T00:00:00"
+      },
+      {
+        "country": "Iceland",
+        "datatype": "wage_per_hour",
+        "value": 32.406753329371355,
+        "year": "2009-01-01T00:00:00"
+      },
+      {
+        "country": "Iceland",
+        "datatype": "wage_per_hour",
+        "value": 33.53034495652192,
+        "year": "2010-01-01T00:00:00"
+      },
+      {
+        "country": "Iceland",
+        "datatype": "wage_per_hour",
+        "value": 34.75448799070891,
+        "year": "2011-01-01T00:00:00"
+      },
+      {
+        "country": "Iceland",
+        "datatype": "wage_per_hour",
+        "value": 34.889558415794156,
+        "year": "2012-01-01T00:00:00"
+      },
+      {
+        "country": "Iceland",
+        "datatype": "wage_per_hour",
+        "value": 35.41048221814521,
+        "year": "2013-01-01T00:00:00"
+      },
+      {
+        "country": "Iceland",
+        "datatype": "wage_per_hour",
+        "value": 36.17707000332855,
+        "year": "2014-01-01T00:00:00"
+      },
+      {
+        "country": "Iceland",
+        "datatype": "wage_per_hour",
+        "value": 38.63437696328604,
+        "year": "2015-01-01T00:00:00"
+      },
+      {
+        "country": "Iceland",
+        "datatype": "wage_per_hour",
+        "value": 41.413826384559606,
+        "year": "2016-01-01T00:00:00"
+      },
+      {
+        "country": "Iceland",
+        "datatype": "wage_per_hour",
+        "value": 45.81993159409237,
+        "year": "2017-01-01T00:00:00"
+      },
+      {
+        "country": "Iceland",
+        "datatype": "wage_per_hour",
+        "value": 48.4396871133484,
+        "year": "2018-01-01T00:00:00"
+      },
+      {
+        "country": "Iceland",
+        "datatype": "wage_per_hour",
+        "value": 47.56159296912669,
+        "year": "2019-01-01T00:00:00"
+      },
+      {
+        "country": "Iceland",
+        "datatype": "wage_per_hour",
+        "value": 47.02997429011902,
+        "year": "2020-01-01T00:00:00"
+      }
+    ],
+    "data-f76a2a7dbf6511c9c0b41031d647a653": [
+      {
+        "Denmark": 1452.0,
+        "Finland": 1652.0,
+        "France": 1635.0,
+        "Germany": 1565.1,
+        "Iceland": 1668.0,
+        "Japan": 1965.0,
+        "Norway": 1510.1,
+        "Sweden": 1427.0,
+        "United Kingdom": 1583.0,
+        "United States": 1822.0,
+        "datatype": "hours",
+        "year": "1992-01-01T00:00:00"
+      },
+      {
+        "Denmark": 1449.0,
+        "Finland": 1651.0,
+        "France": 1627.0,
+        "Germany": 1540.2,
+        "Iceland": 1683.0,
+        "Japan": 1905.0,
+        "Norway": 1506.8,
+        "Sweden": 1443.0,
+        "United Kingdom": 1577.0,
+        "United States": 1828.0,
+        "datatype": "hours",
+        "year": "1993-01-01T00:00:00"
+      },
+      {
+        "Denmark": 1407.0,
+        "Finland": 1671.0,
+        "France": 1623.0,
+        "Germany": 1536.6,
+        "Iceland": 1655.0,
+        "Japan": 1898.0,
+        "Norway": 1505.0,
+        "Sweden": 1477.0,
+        "United Kingdom": 1586.0,
+        "United States": 1839.0,
+        "datatype": "hours",
+        "year": "1994-01-01T00:00:00"
+      },
+      {
+        "Denmark": 1419.0,
+        "Finland": 1677.0,
+        "France": 1601.0,
+        "Germany": 1530.6,
+        "Iceland": 1641.0,
+        "Japan": 1884.0,
+        "Norway": 1487.8,
+        "Sweden": 1483.0,
+        "United Kingdom": 1586.0,
+        "United States": 1839.0,
+        "datatype": "hours",
+        "year": "1995-01-01T00:00:00"
+      },
+      {
+        "Denmark": 1412.0,
+        "Finland": 1675.0,
+        "France": 1597.0,
+        "Germany": 1516.8,
+        "Iceland": 1659.0,
+        "Japan": 1892.0,
+        "Norway": 1482.6,
+        "Sweden": 1493.0,
+        "United Kingdom": 1586.0,
+        "United States": 1840.0,
+        "datatype": "hours",
+        "year": "1996-01-01T00:00:00"
+      },
+      {
+        "Denmark": 1428.0,
+        "Finland": 1671.0,
+        "France": 1596.0,
+        "Germany": 1507.7,
+        "Iceland": 1684.0,
+        "Japan": 1865.0,
+        "Norway": 1477.6,
+        "Sweden": 1498.0,
+        "United Kingdom": 1586.0,
+        "United States": 1843.0,
+        "datatype": "hours",
+        "year": "1997-01-01T00:00:00"
+      },
+      {
+        "Denmark": 1441.0,
+        "Finland": 1661.0,
+        "France": 1585.0,
+        "Germany": 1504.5,
+        "Iceland": 1665.0,
+        "Japan": 1842.0,
+        "Norway": 1475.5,
+        "Sweden": 1497.0,
+        "United Kingdom": 1582.0,
+        "United States": 1842.0,
+        "datatype": "hours",
+        "year": "1998-01-01T00:00:00"
+      },
+      {
+        "Denmark": 1456.0,
+        "Finland": 1661.0,
+        "France": 1578.0,
+        "Germany": 1491.5,
+        "Iceland": 1645.0,
+        "Japan": 1810.0,
+        "Norway": 1474.4,
+        "Sweden": 1506.0,
+        "United Kingdom": 1573.0,
+        "United States": 1839.0,
+        "datatype": "hours",
+        "year": "1999-01-01T00:00:00"
+      },
+      {
+        "Denmark": 1466.0,
+        "Finland": 1650.0,
+        "France": 1558.0,
+        "Germany": 1465.9,
+        "Iceland": 1696.0,
+        "Japan": 1821.0,
+        "Norway": 1456.6,
+        "Sweden": 1486.0,
+        "United Kingdom": 1558.0,
+        "United States": 1832.0,
+        "datatype": "hours",
+        "year": "2000-01-01T00:00:00"
+      },
+      {
+        "Denmark": 1469.0,
+        "Finland": 1636.0,
+        "France": 1538.0,
+        "Germany": 1458.2,
+        "Iceland": 1707.0,
+        "Japan": 1809.0,
+        "Norway": 1424.1,
+        "Sweden": 1465.0,
+        "United Kingdom": 1563.0,
+        "United States": 1811.0,
+        "datatype": "hours",
+        "year": "2001-01-01T00:00:00"
+      },
+      {
+        "Denmark": 1463.0,
+        "Finland": 1628.0,
+        "France": 1504.0,
+        "Germany": 1448.9,
+        "Iceland": 1672.0,
+        "Japan": 1798.0,
+        "Norway": 1406.7,
+        "Sweden": 1445.0,
+        "United Kingdom": 1543.0,
+        "United States": 1806.0,
+        "datatype": "hours",
+        "year": "2002-01-01T00:00:00"
+      },
+      {
+        "Denmark": 1458.0,
+        "Finland": 1623.0,
+        "France": 1507.0,
+        "Germany": 1443.4,
+        "Iceland": 1639.0,
+        "Japan": 1799.0,
+        "Norway": 1389.7,
+        "Sweden": 1432.0,
+        "United Kingdom": 1534.0,
+        "United States": 1796.0,
+        "datatype": "hours",
+        "year": "2003-01-01T00:00:00"
+      },
+      {
+        "Denmark": 1458.0,
+        "Finland": 1624.0,
+        "France": 1531.0,
+        "Germany": 1442.6,
+        "Iceland": 1645.0,
+        "Japan": 1787.0,
+        "Norway": 1405.1,
+        "Sweden": 1454.0,
+        "United Kingdom": 1534.0,
+        "United States": 1798.0,
+        "datatype": "hours",
+        "year": "2004-01-01T00:00:00"
+      },
+      {
+        "Denmark": 1451.0,
+        "Finland": 1613.0,
+        "France": 1532.0,
+        "Germany": 1432.4,
+        "Iceland": 1637.0,
+        "Japan": 1775.0,
+        "Norway": 1405.9,
+        "Sweden": 1453.0,
+        "United Kingdom": 1544.0,
+        "United States": 1794.0,
+        "datatype": "hours",
+        "year": "2005-01-01T00:00:00"
+      },
+      {
+        "Denmark": 1456.0,
+        "Finland": 1608.0,
+        "France": 1515.0,
+        "Germany": 1453.2,
+        "Iceland": 1627.0,
+        "Japan": 1784.0,
+        "Norway": 1399.3,
+        "Sweden": 1451.0,
+        "United Kingdom": 1536.0,
+        "United States": 1796.0,
+        "datatype": "hours",
+        "year": "2006-01-01T00:00:00"
+      },
+      {
+        "Denmark": 1433.0,
+        "Finland": 1605.0,
+        "France": 1537.0,
+        "Germany": 1454.1,
+        "Iceland": 1605.0,
+        "Japan": 1785.0,
+        "Norway": 1405.6,
+        "Sweden": 1463.0,
+        "United Kingdom": 1541.0,
+        "United States": 1795.0,
+        "datatype": "hours",
+        "year": "2007-01-01T00:00:00"
+      },
+      {
+        "Denmark": 1430.0,
+        "Finland": 1601.0,
+        "France": 1543.0,
+        "Germany": 1447.3,
+        "Iceland": 1625.0,
+        "Japan": 1771.0,
+        "Norway": 1406.6,
+        "Sweden": 1472.0,
+        "United Kingdom": 1525.0,
+        "United States": 1786.0,
+        "datatype": "hours",
+        "year": "2008-01-01T00:00:00"
+      },
+      {
+        "Denmark": 1417.0,
+        "Finland": 1580.0,
+        "France": 1531.0,
+        "Germany": 1405.0,
+        "Iceland": 1536.0,
+        "Japan": 1714.0,
+        "Norway": 1387.1,
+        "Sweden": 1459.0,
+        "United Kingdom": 1516.0,
+        "United States": 1761.0,
+        "datatype": "hours",
+        "year": "2009-01-01T00:00:00"
+      },
+      {
+        "Denmark": 1422.0,
+        "Finland": 1585.0,
+        "France": 1540.0,
+        "Germany": 1425.7,
+        "Iceland": 1528.0,
+        "Japan": 1733.0,
+        "Norway": 1395.1,
+        "Sweden": 1484.0,
+        "United Kingdom": 1507.0,
+        "United States": 1772.0,
+        "datatype": "hours",
+        "year": "2010-01-01T00:00:00"
+      },
+      {
+        "Denmark": 1437.0,
+        "Finland": 1578.0,
+        "France": 1546.0,
+        "Germany": 1426.9,
+        "Iceland": 1538.0,
+        "Japan": 1728.0,
+        "Norway": 1399.9,
+        "Sweden": 1484.0,
+        "United Kingdom": 1515.0,
+        "United States": 1778.0,
+        "datatype": "hours",
+        "year": "2011-01-01T00:00:00"
+      },
+      {
+        "Denmark": 1423.0,
+        "Finland": 1568.0,
+        "France": 1541.0,
+        "Germany": 1408.0,
+        "Iceland": 1523.0,
+        "Japan": 1745.0,
+        "Norway": 1396.3,
+        "Sweden": 1472.0,
+        "United Kingdom": 1531.0,
+        "United States": 1782.0,
+        "datatype": "hours",
+        "year": "2012-01-01T00:00:00"
+      },
+      {
+        "Denmark": 1426.0,
+        "Finland": 1560.0,
+        "France": 1526.0,
+        "Germany": 1396.5,
+        "Iceland": 1524.0,
+        "Japan": 1734.0,
+        "Norway": 1386.7,
+        "Sweden": 1464.0,
+        "United Kingdom": 1534.0,
+        "United States": 1780.0,
+        "datatype": "hours",
+        "year": "2013-01-01T00:00:00"
+      },
+      {
+        "Denmark": 1414.0,
+        "Finland": 1558.0,
+        "France": 1518.0,
+        "Germany": 1400.4,
+        "Iceland": 1513.0,
+        "Japan": 1729.0,
+        "Norway": 1389.5,
+        "Sweden": 1465.0,
+        "United Kingdom": 1542.0,
+        "United States": 1782.0,
+        "datatype": "hours",
+        "year": "2014-01-01T00:00:00"
+      },
+      {
+        "Denmark": 1407.0,
+        "Finland": 1555.0,
+        "France": 1519.0,
+        "Germany": 1401.0,
+        "Iceland": 1511.0,
+        "Japan": 1719.0,
+        "Norway": 1391.9,
+        "Sweden": 1466.0,
+        "United Kingdom": 1525.0,
+        "United States": 1783.0,
+        "datatype": "hours",
+        "year": "2015-01-01T00:00:00"
+      },
+      {
+        "Denmark": 1412.0,
+        "Finland": 1555.0,
+        "France": 1522.0,
+        "Germany": 1395.6,
+        "Iceland": 1520.0,
+        "Japan": 1714.0,
+        "Norway": 1394.7,
+        "Sweden": 1478.0,
+        "United Kingdom": 1541.0,
+        "United States": 1778.0,
+        "datatype": "hours",
+        "year": "2016-01-01T00:00:00"
+      },
+      {
+        "Denmark": 1404.0,
+        "Finland": 1549.0,
+        "France": 1508.0,
+        "Germany": 1389.1,
+        "Iceland": 1507.0,
+        "Japan": 1709.0,
+        "Norway": 1380.4,
+        "Sweden": 1466.0,
+        "United Kingdom": 1536.0,
+        "United States": 1778.0,
+        "datatype": "hours",
+        "year": "2017-01-01T00:00:00"
+      },
+      {
+        "Denmark": 1381.0,
+        "Finland": 1546.0,
+        "France": 1514.0,
+        "Germany": 1386.9,
+        "Iceland": 1496.0,
+        "Japan": 1680.0,
+        "Norway": 1379.3,
+        "Sweden": 1466.0,
+        "United Kingdom": 1536.0,
+        "United States": 1782.0,
+        "datatype": "hours",
+        "year": "2018-01-01T00:00:00"
+      },
+      {
+        "Denmark": 1381.0,
+        "Finland": 1539.0,
+        "France": 1511.0,
+        "Germany": 1382.8,
+        "Iceland": 1480.0,
+        "Japan": 1644.0,
+        "Norway": 1381.4,
+        "Sweden": 1452.0,
+        "United Kingdom": 1537.0,
+        "United States": 1777.0,
+        "datatype": "hours",
+        "year": "2019-01-01T00:00:00"
+      },
+      {
+        "Denmark": 1346.0,
+        "Finland": 1531.0,
+        "France": 1402.0,
+        "Germany": 1331.7,
+        "Iceland": 1435.0,
+        "Japan": 1598.0,
+        "Norway": 1368.7,
+        "Sweden": 1424.0,
+        "United Kingdom": 1367.0,
+        "United States": 1767.0,
+        "datatype": "hours",
+        "year": "2020-01-01T00:00:00"
+      }
+    ]
+  },
+  "usermeta": {
+    "customTooltip": {
+      "formatter": {
+        "hours": {
+          "digits": 4,
+          "name": "hour"
+        },
+        "wage_per_hour": {
+          "digits": 3,
+          "name": "USD"
+        },
+        "wages": {
+          "digits": 4,
+          "name": "USD"
+        }
+      }
+    }
+  },
+  "vconcat": [
+    {
+      "height": 400,
+      "layer": [
+        {
+          "data": {
+            "name": "data-2b7d48bbca1d5a38e7cdd90788398172"
+          },
+          "encoding": {
+            "color": {
+              "field": "country",
+              "legend": null,
+              "sort": [
+                "Finland",
+                "Sweden",
+                "Denmark",
+                "Norway",
+                "Iceland",
+                "Germany",
+                "France",
+                "United Kingdom",
+                "United States",
+                "Japan"
+              ],
+              "type": "nominal"
+            },
+            "x": {
+              "axis": {
+                "format": "%Y",
+                "formatType": "time",
+                "grid": true,
+                "labelAngle": 0
+              },
+              "field": "year",
+              "timeUnit": "year",
+              "title": "Year",
+              "type": "temporal"
+            },
+            "y": {
+              "axis": {
+                "grid": true,
+                "title": "Average worked hours"
+              },
+              "field": "value",
+              "scale": {
+                "domainMin": 1198.53
+              },
+              "type": "quantitative"
+            }
+          },
+          "mark": "line"
+        },
+        {
+          "data": {
+            "name": "data-2b7d48bbca1d5a38e7cdd90788398172"
+          },
+          "encoding": {
+            "x": {
+              "axis": {
+                "format": "%Y",
+                "formatType": "time",
+                "grid": true,
+                "labelAngle": 0
+              },
+              "field": "year",
+              "timeUnit": "year",
+              "title": "Year",
+              "type": "temporal"
+            }
+          },
+          "mark": {
+            "color": "gray",
+            "type": "rule"
+          },
+          "transform": [
+            {
+              "filter": {
+                "selection": "selector001"
+              }
+            }
+          ]
+        },
+        {
+          "data": {
+            "name": "data-f76a2a7dbf6511c9c0b41031d647a653"
+          },
+          "encoding": {
+            "opacity": {
+              "value": 0
+            },
+            "tooltip": [
+              {
+                "field": "datatype",
+                "type": "nominal"
+              },
+              {
+                "field": "year",
+                "format": "%Y",
+                "formatType": "time",
+                "title": "title"
+              },
+              {
+                "field": "Finland",
+                "type": "quantitative"
+              },
+              {
+                "field": "Sweden",
+                "type": "quantitative"
+              },
+              {
+                "field": "Denmark",
+                "type": "quantitative"
+              },
+              {
+                "field": "Norway",
+                "type": "quantitative"
+              },
+              {
+                "field": "Iceland",
+                "type": "quantitative"
+              },
+              {
+                "field": "Germany",
+                "type": "quantitative"
+              },
+              {
+                "field": "France",
+                "type": "quantitative"
+              },
+              {
+                "field": "United Kingdom",
+                "type": "quantitative"
+              },
+              {
+                "field": "United States",
+                "type": "quantitative"
+              },
+              {
+                "field": "Japan",
+                "type": "quantitative"
+              }
+            ],
+            "x": {
+              "axis": {
+                "format": "%Y",
+                "formatType": "time",
+                "grid": true,
+                "labelAngle": 0
+              },
+              "field": "year",
+              "timeUnit": "year",
+              "title": "Year",
+              "type": "temporal"
+            }
+          },
+          "mark": "point",
+          "selection": {
+            "selector001": {
+              "clear": "mouseout",
+              "empty": "none",
+              "fields": [
+                "year"
+              ],
+              "nearest": true,
+              "on": "mouseover",
+              "type": "single"
+            }
+          }
+        }
+      ],
+      "width": "container"
+    },
+    {
+      "height": 400,
+      "layer": [
+        {
+          "data": {
+            "name": "data-0c351bdc0d91583ae3437fb284c4f1f6"
+          },
+          "encoding": {
+            "color": {
+              "field": "country",
+              "legend": null,
+              "sort": [
+                "Finland",
+                "Sweden",
+                "Denmark",
+                "Norway",
+                "Iceland",
+                "Germany",
+                "France",
+                "United Kingdom",
+                "United States",
+                "Japan"
+              ],
+              "type": "nominal"
+            },
+            "x": {
+              "axis": {
+                "format": "%Y",
+                "formatType": "time",
+                "grid": true,
+                "labelAngle": 0
+              },
+              "field": "year",
+              "timeUnit": "year",
+              "title": "Year",
+              "type": "temporal"
+            },
+            "y": {
+              "axis": {
+                "grid": true,
+                "title": "Average annual wages (2020 USD PPP)"
+              },
+              "field": "value",
+              "scale": {
+                "domainMin": 25159.96585090755
+              },
+              "type": "quantitative"
+            }
+          },
+          "mark": "line"
+        },
+        {
+          "data": {
+            "name": "data-0c351bdc0d91583ae3437fb284c4f1f6"
+          },
+          "encoding": {
+            "x": {
+              "axis": {
+                "format": "%Y",
+                "formatType": "time",
+                "grid": true,
+                "labelAngle": 0
+              },
+              "field": "year",
+              "timeUnit": "year",
+              "title": "Year",
+              "type": "temporal"
+            }
+          },
+          "mark": {
+            "color": "gray",
+            "type": "rule"
+          },
+          "transform": [
+            {
+              "filter": {
+                "selection": "selector002"
+              }
+            }
+          ]
+        },
+        {
+          "data": {
+            "name": "data-b8d636ea8f97121bac55fca097f2f815"
+          },
+          "encoding": {
+            "opacity": {
+              "value": 0
+            },
+            "tooltip": [
+              {
+                "field": "datatype",
+                "type": "nominal"
+              },
+              {
+                "field": "year",
+                "format": "%Y",
+                "formatType": "time",
+                "title": "title"
+              },
+              {
+                "field": "Finland",
+                "type": "quantitative"
+              },
+              {
+                "field": "Sweden",
+                "type": "quantitative"
+              },
+              {
+                "field": "Denmark",
+                "type": "quantitative"
+              },
+              {
+                "field": "Norway",
+                "type": "quantitative"
+              },
+              {
+                "field": "Iceland",
+                "type": "quantitative"
+              },
+              {
+                "field": "Germany",
+                "type": "quantitative"
+              },
+              {
+                "field": "France",
+                "type": "quantitative"
+              },
+              {
+                "field": "United Kingdom",
+                "type": "quantitative"
+              },
+              {
+                "field": "United States",
+                "type": "quantitative"
+              },
+              {
+                "field": "Japan",
+                "type": "quantitative"
+              }
+            ],
+            "x": {
+              "axis": {
+                "format": "%Y",
+                "formatType": "time",
+                "grid": true,
+                "labelAngle": 0
+              },
+              "field": "year",
+              "timeUnit": "year",
+              "title": "Year",
+              "type": "temporal"
+            }
+          },
+          "mark": "point",
+          "selection": {
+            "selector002": {
+              "clear": "mouseout",
+              "empty": "none",
+              "fields": [
+                "year"
+              ],
+              "nearest": true,
+              "on": "mouseover",
+              "type": "single"
+            }
+          }
+        }
+      ],
+      "width": "container"
+    },
+    {
+      "height": 400,
+      "layer": [
+        {
+          "data": {
+            "name": "data-ea73f300cf95ad52d330d835b9d12846"
+          },
+          "encoding": {
+            "color": {
+              "field": "country",
+              "legend": null,
+              "sort": [
+                "Finland",
+                "Sweden",
+                "Denmark",
+                "Norway",
+                "Iceland",
+                "Germany",
+                "France",
+                "United Kingdom",
+                "United States",
+                "Japan"
+              ],
+              "type": "nominal"
+            },
+            "x": {
+              "axis": {
+                "format": "%Y",
+                "formatType": "time",
+                "grid": true,
+                "labelAngle": 0
+              },
+              "field": "year",
+              "timeUnit": "year",
+              "title": "Year",
+              "type": "temporal"
+            },
+            "y": {
+              "axis": {
+                "grid": true,
+                "title": "Average hourly wages"
+              },
+              "field": "value",
+              "scale": {
+                "domainMin": 17.167823002502516
+              },
+              "type": "quantitative"
+            }
+          },
+          "mark": "line"
+        },
+        {
+          "data": {
+            "name": "data-ea73f300cf95ad52d330d835b9d12846"
+          },
+          "encoding": {
+            "x": {
+              "axis": {
+                "format": "%Y",
+                "formatType": "time",
+                "grid": true,
+                "labelAngle": 0
+              },
+              "field": "year",
+              "timeUnit": "year",
+              "title": "Year",
+              "type": "temporal"
+            }
+          },
+          "mark": {
+            "color": "gray",
+            "type": "rule"
+          },
+          "transform": [
+            {
+              "filter": {
+                "selection": "selector003"
+              }
+            }
+          ]
+        },
+        {
+          "data": {
+            "name": "data-aee2d10bcb846d60361ee6092ae8730a"
+          },
+          "encoding": {
+            "opacity": {
+              "value": 0
+            },
+            "tooltip": [
+              {
+                "field": "datatype",
+                "type": "nominal"
+              },
+              {
+                "field": "year",
+                "format": "%Y",
+                "formatType": "time",
+                "title": "title"
+              },
+              {
+                "field": "Finland",
+                "type": "quantitative"
+              },
+              {
+                "field": "Sweden",
+                "type": "quantitative"
+              },
+              {
+                "field": "Denmark",
+                "type": "quantitative"
+              },
+              {
+                "field": "Norway",
+                "type": "quantitative"
+              },
+              {
+                "field": "Iceland",
+                "type": "quantitative"
+              },
+              {
+                "field": "Germany",
+                "type": "quantitative"
+              },
+              {
+                "field": "France",
+                "type": "quantitative"
+              },
+              {
+                "field": "United Kingdom",
+                "type": "quantitative"
+              },
+              {
+                "field": "United States",
+                "type": "quantitative"
+              },
+              {
+                "field": "Japan",
+                "type": "quantitative"
+              }
+            ],
+            "x": {
+              "axis": {
+                "format": "%Y",
+                "formatType": "time",
+                "grid": true,
+                "labelAngle": 0
+              },
+              "field": "year",
+              "timeUnit": "year",
+              "title": "Year",
+              "type": "temporal"
+            }
+          },
+          "mark": "point",
+          "selection": {
+            "selector003": {
+              "clear": "mouseout",
+              "empty": "none",
+              "fields": [
+                "year"
+              ],
+              "nearest": true,
+              "on": "mouseover",
+              "type": "single"
+            }
+          }
+        }
+      ],
+      "width": "container"
+    }
+  ]
+};
+        const options = {"renderer": "canvas", "actions": false};
+        buildChart(spec, options);
+      </script>
+      <div id='custom-tooltip-element'></div>
+
+
+
+  </body>
+
+</html>

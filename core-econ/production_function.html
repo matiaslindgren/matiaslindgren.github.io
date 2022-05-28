@@ -1,0 +1,2898 @@
+<!DOCTYPE HTML>
+<html lang="en">
+
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Production function
+</title>
+
+      <script src="https://cdn.jsdelivr.net/npm/vega@5" crossorigin="anonymous">
+      </script>
+      <script src="https://cdn.jsdelivr.net/npm/vega-lite@4" crossorigin="anonymous">
+      </script>
+      <script src="https://cdn.jsdelivr.net/npm/vega-embed@6" crossorigin="anonymous">
+      </script>
+
+    <link rel="stylesheet"
+          href="https://cdn.jsdelivr.net/npm/katex@0.15.3/dist/katex.min.css"
+          integrity="sha384-KiWOvVjnN8qwAZbuQyWDIbfCLFhLXNETzBQjA/92pIowpC0d2O3nppDGQVgwd2nB"
+          crossorigin="anonymous">
+    <script defer
+            src="https://cdn.jsdelivr.net/npm/katex@0.15.3/dist/katex.min.js"
+            integrity="sha384-0fdwu/T/EQMsQlrHCCHoH10pkPLlKA1jL5dFyUOvB3lfeT2540/2g6YgSi2BL14p"
+            crossorigin="anonymous">
+    </script>
+
+
+    <style>
+body {
+  font-family: Georgia, serif;
+  padding: 1rem;
+}
+
+a {
+  text-decoration: none;
+}
+
+a:hover {
+  text-decoration: underline;
+}
+
+#vega-container {
+  max-width: 70em;
+  width: 100%;
+}
+
+form.vega-bindings .vega-bind label {
+  display: grid;
+  grid-template-columns: 6em 14em 6em;
+}
+
+form.vega-bindings .vega-bind label span {
+  margin-left: 0.5em;
+}
+
+dl {
+  padding-top: 1rem;
+  padding-bottom: 1rem;
+  max-width: 800px;
+}
+
+dl,
+dd {
+  font-size: 0.9rem;
+}
+
+dt {
+  font-weight: bold;
+}
+
+dd {
+  margin-bottom: 1rem;
+}
+
+ul.data-source-url-list {
+  padding: 0;
+  list-style: none;
+}
+
+table {
+  border-collapse: collapse;
+  width: 100%;
+  max-width: 800px;
+}
+
+table td {
+  vertical-align: baseline;
+}
+
+table tr {
+  border-bottom: 1px solid lightgray;
+}
+
+table.tooltip {
+  border-collapse: initial;
+  width: initial;
+  max-width: initial;
+}
+
+table.tooltip tbody tr td {
+  vertical-align: middle;
+}
+
+#custom-tooltip-element.visible {
+  visibility: visible;
+}
+
+#custom-tooltip-element {
+  visibility: hidden;
+  padding: 0.5rem;
+  position: fixed;
+  z-index: 1000;
+  font-size: 0.8rem;
+  border-radius: 3px;
+  box-shadow: 2px 2px 4px rgba(0, 0, 0, 0.1);
+  background-color: rgba(255, 255, 255, 0.95);
+  border: 1px solid #d9d9d9;
+  color: black;
+}
+
+dd.module-description ul {
+  padding-left: 0px;
+  list-style-position: inside;
+}    </style>
+
+
+  </head>
+
+  <body>
+    <a href="index.html">go back</a>
+    <h1>Production function
+</h1>
+    <dl>
+      <dt>Updated at</dt>
+      <dd>29. May 2022</dd>
+        <dt>Book chapter</dt>
+        <dd><a href="https://core-econ.org/the-economy/book/text/03.html#figure-3-5a
+">3.1 Labour and production
+</a></dd>
+    </dl>
+
+<div class='equations'>
+Let <span class="kx">f(h) = \min(m, A h ^ \alpha)</span> be a production function for the final grade, where <span class='kx'>h</span> is the amount of study hours and <span class='kx'>m</span> the maximum grade regardless of study effort.
+<span class='kx'>A</span> and <span class='kx'>\alpha</span> are constants.
+</div>
+<script></script>
+
+      <div id="vega-container"></div>
+      <script type="text/javascript">
+function renderTooltip(event, value, config) {
+  const tooltipContainer = document.getElementById("custom-tooltip-element");
+  tooltipContainer.classList.add("visible");
+  if (!value) {
+    tooltipContainer.classList.remove("visible");
+    return;
+  }
+  tooltipContainer.setAttribute(
+    "style",
+    `top: ${event.clientY + 15}px; left: ${event.clientX + 15}px`
+  );
+  const colorScheme = vega.scheme(findScheme(spec));
+  let { datatype, title, ...values } = value;
+  values = Array.from(Object.keys(values), (key, i) => ({
+    key: key,
+    val: values[key],
+    color: colorScheme[i],
+  }));
+  values.sort((a, b) => parseFloat(b.val) - parseFloat(a.val));
+  const fmt = getFormatter(config.formatter[datatype]);
+  tooltipContainer.innerHTML = sortedTable(title, values, fmt).outerHTML;
+}
+
+function getFormatter({ name, digits }) {
+  const currency = (c) =>
+    Intl.NumberFormat("en-US", {
+      maximumSignificantDigits: digits,
+      style: "currency",
+      currency: c,
+    });
+  const unit = (u) =>
+    Intl.NumberFormat("en-US", { maximumSignificantDigits: digits, style: "unit", unit: u });
+  switch (name) {
+    case "hour":
+      return unit("hour");
+    case "USD":
+    default:
+      return currency("USD");
+  }
+}
+
+function svgCircle(color) {
+  return [
+    `<svg style="display: table-cell; height: 1em; width: 1em; fill: ${color};" viewBox="0 0 2 2" xmlns="http://www.w3.org/2000/svg">`,
+    `<circle cx="1.1" cy="1.1" r="0.8"/>`,
+    `</svg>`,
+  ].join("\n");
+}
+
+const element = (tag) => document.createElement(tag);
+
+function findScheme(spec) {
+  for (const layer of spec.hconcat || spec.vconcat || spec.layer) {
+    const scheme =
+      layer &&
+      layer.encoding &&
+      layer.encoding.color &&
+      layer.encoding.color.scale &&
+      layer.encoding.color.scale.scheme;
+    if (scheme) {
+      return scheme;
+    }
+  }
+  return "tableau10";
+}
+
+function sortedTable(title, values, fmt) {
+  const container = element("div");
+  const header = element("h4");
+  header.setAttribute("style", "margin: 0 auto 0.5em;");
+  header.innerText = title;
+  container.appendChild(header);
+  const tbody = element("tbody");
+  for (let row of values) {
+    const tr = element("tr");
+    tr.innerHTML = [
+      `<td>${svgCircle(row.color)}</td>`,
+      `<td>${row.key}</td>`,
+      `<td>${fmt.format(row.val)}</td>`,
+    ].join("\n");
+    tbody.appendChild(tr);
+  }
+  const table = element("table");
+  table.classList.add("tooltip");
+  table.appendChild(tbody);
+  container.appendChild(table);
+  return container;
+}
+
+let vegaView;
+
+function buildChart(spec, options) {
+  vegaEmbed("#vega-container", spec, options)
+    .then((result) => {
+      vegaView = result.view;
+      const meta = spec.usermeta;
+      if (!meta) {
+        return;
+      }
+      if (meta.inputsOnTop) {
+        const bindings = document.querySelector("#vega-container.vega-embed form.vega-bindings");
+        const canvas = document.querySelector("#vega-container.vega-embed canvas");
+        canvas.parentNode.insertBefore(bindings, canvas);
+      }
+      if (meta.customTooltip) {
+        result.view.tooltip((handler, event, item, value) =>
+          renderTooltip(event, value, meta.customTooltip)
+        );
+      }
+      return result.view.runAsync();
+    })
+    .catch(console.error);
+}        const spec = {
+  "$schema": "https://vega.github.io/schema/vega-lite/v4.17.0.json",
+  "config": {
+    "axis": {
+      "labelFont": "Georgia",
+      "labelFontSize": 14,
+      "titleFont": "Georgia",
+      "titleFontSize": 16
+    },
+    "header": {
+      "labelFont": "Georgia",
+      "labelFontSize": 14,
+      "titleFont": "Georgia",
+      "titleFontSize": 16
+    },
+    "legend": {
+      "labelFont": "Georgia",
+      "labelFontSize": 14,
+      "titleFont": "Georgia",
+      "titleFontSize": 16
+    },
+    "title": {
+      "font": "Georgia",
+      "fontSize": 16
+    },
+    "view": {
+      "continuousHeight": 300,
+      "continuousWidth": 400
+    }
+  },
+  "data": {
+    "name": "data-5a836a143f2416e9324ed54d877c6fdf"
+  },
+  "datasets": {
+    "data-5a836a143f2416e9324ed54d877c6fdf": [
+      {
+        "hours": 0.0,
+        "type": "Final grade"
+      },
+      {
+        "hours": 0.0,
+        "type": "Average product"
+      },
+      {
+        "hours": 0.0,
+        "type": "Marginal product"
+      },
+      {
+        "hours": 0.12060301507537688,
+        "type": "Final grade"
+      },
+      {
+        "hours": 0.12060301507537688,
+        "type": "Average product"
+      },
+      {
+        "hours": 0.12060301507537688,
+        "type": "Marginal product"
+      },
+      {
+        "hours": 0.24120603015075376,
+        "type": "Final grade"
+      },
+      {
+        "hours": 0.24120603015075376,
+        "type": "Average product"
+      },
+      {
+        "hours": 0.24120603015075376,
+        "type": "Marginal product"
+      },
+      {
+        "hours": 0.36180904522613067,
+        "type": "Final grade"
+      },
+      {
+        "hours": 0.36180904522613067,
+        "type": "Average product"
+      },
+      {
+        "hours": 0.36180904522613067,
+        "type": "Marginal product"
+      },
+      {
+        "hours": 0.4824120603015075,
+        "type": "Final grade"
+      },
+      {
+        "hours": 0.4824120603015075,
+        "type": "Average product"
+      },
+      {
+        "hours": 0.4824120603015075,
+        "type": "Marginal product"
+      },
+      {
+        "hours": 0.6030150753768844,
+        "type": "Final grade"
+      },
+      {
+        "hours": 0.6030150753768844,
+        "type": "Average product"
+      },
+      {
+        "hours": 0.6030150753768844,
+        "type": "Marginal product"
+      },
+      {
+        "hours": 0.7236180904522613,
+        "type": "Final grade"
+      },
+      {
+        "hours": 0.7236180904522613,
+        "type": "Average product"
+      },
+      {
+        "hours": 0.7236180904522613,
+        "type": "Marginal product"
+      },
+      {
+        "hours": 0.8442211055276382,
+        "type": "Final grade"
+      },
+      {
+        "hours": 0.8442211055276382,
+        "type": "Average product"
+      },
+      {
+        "hours": 0.8442211055276382,
+        "type": "Marginal product"
+      },
+      {
+        "hours": 0.964824120603015,
+        "type": "Final grade"
+      },
+      {
+        "hours": 0.964824120603015,
+        "type": "Average product"
+      },
+      {
+        "hours": 0.964824120603015,
+        "type": "Marginal product"
+      },
+      {
+        "hours": 1.085427135678392,
+        "type": "Final grade"
+      },
+      {
+        "hours": 1.085427135678392,
+        "type": "Average product"
+      },
+      {
+        "hours": 1.085427135678392,
+        "type": "Marginal product"
+      },
+      {
+        "hours": 1.2060301507537687,
+        "type": "Final grade"
+      },
+      {
+        "hours": 1.2060301507537687,
+        "type": "Average product"
+      },
+      {
+        "hours": 1.2060301507537687,
+        "type": "Marginal product"
+      },
+      {
+        "hours": 1.3266331658291457,
+        "type": "Final grade"
+      },
+      {
+        "hours": 1.3266331658291457,
+        "type": "Average product"
+      },
+      {
+        "hours": 1.3266331658291457,
+        "type": "Marginal product"
+      },
+      {
+        "hours": 1.4472361809045227,
+        "type": "Final grade"
+      },
+      {
+        "hours": 1.4472361809045227,
+        "type": "Average product"
+      },
+      {
+        "hours": 1.4472361809045227,
+        "type": "Marginal product"
+      },
+      {
+        "hours": 1.5678391959798994,
+        "type": "Final grade"
+      },
+      {
+        "hours": 1.5678391959798994,
+        "type": "Average product"
+      },
+      {
+        "hours": 1.5678391959798994,
+        "type": "Marginal product"
+      },
+      {
+        "hours": 1.6884422110552764,
+        "type": "Final grade"
+      },
+      {
+        "hours": 1.6884422110552764,
+        "type": "Average product"
+      },
+      {
+        "hours": 1.6884422110552764,
+        "type": "Marginal product"
+      },
+      {
+        "hours": 1.809045226130653,
+        "type": "Final grade"
+      },
+      {
+        "hours": 1.809045226130653,
+        "type": "Average product"
+      },
+      {
+        "hours": 1.809045226130653,
+        "type": "Marginal product"
+      },
+      {
+        "hours": 1.92964824120603,
+        "type": "Final grade"
+      },
+      {
+        "hours": 1.92964824120603,
+        "type": "Average product"
+      },
+      {
+        "hours": 1.92964824120603,
+        "type": "Marginal product"
+      },
+      {
+        "hours": 2.050251256281407,
+        "type": "Final grade"
+      },
+      {
+        "hours": 2.050251256281407,
+        "type": "Average product"
+      },
+      {
+        "hours": 2.050251256281407,
+        "type": "Marginal product"
+      },
+      {
+        "hours": 2.170854271356784,
+        "type": "Final grade"
+      },
+      {
+        "hours": 2.170854271356784,
+        "type": "Average product"
+      },
+      {
+        "hours": 2.170854271356784,
+        "type": "Marginal product"
+      },
+      {
+        "hours": 2.2914572864321605,
+        "type": "Final grade"
+      },
+      {
+        "hours": 2.2914572864321605,
+        "type": "Average product"
+      },
+      {
+        "hours": 2.2914572864321605,
+        "type": "Marginal product"
+      },
+      {
+        "hours": 2.4120603015075375,
+        "type": "Final grade"
+      },
+      {
+        "hours": 2.4120603015075375,
+        "type": "Average product"
+      },
+      {
+        "hours": 2.4120603015075375,
+        "type": "Marginal product"
+      },
+      {
+        "hours": 2.5326633165829144,
+        "type": "Final grade"
+      },
+      {
+        "hours": 2.5326633165829144,
+        "type": "Average product"
+      },
+      {
+        "hours": 2.5326633165829144,
+        "type": "Marginal product"
+      },
+      {
+        "hours": 2.6532663316582914,
+        "type": "Final grade"
+      },
+      {
+        "hours": 2.6532663316582914,
+        "type": "Average product"
+      },
+      {
+        "hours": 2.6532663316582914,
+        "type": "Marginal product"
+      },
+      {
+        "hours": 2.7738693467336684,
+        "type": "Final grade"
+      },
+      {
+        "hours": 2.7738693467336684,
+        "type": "Average product"
+      },
+      {
+        "hours": 2.7738693467336684,
+        "type": "Marginal product"
+      },
+      {
+        "hours": 2.8944723618090453,
+        "type": "Final grade"
+      },
+      {
+        "hours": 2.8944723618090453,
+        "type": "Average product"
+      },
+      {
+        "hours": 2.8944723618090453,
+        "type": "Marginal product"
+      },
+      {
+        "hours": 3.015075376884422,
+        "type": "Final grade"
+      },
+      {
+        "hours": 3.015075376884422,
+        "type": "Average product"
+      },
+      {
+        "hours": 3.015075376884422,
+        "type": "Marginal product"
+      },
+      {
+        "hours": 3.135678391959799,
+        "type": "Final grade"
+      },
+      {
+        "hours": 3.135678391959799,
+        "type": "Average product"
+      },
+      {
+        "hours": 3.135678391959799,
+        "type": "Marginal product"
+      },
+      {
+        "hours": 3.2562814070351758,
+        "type": "Final grade"
+      },
+      {
+        "hours": 3.2562814070351758,
+        "type": "Average product"
+      },
+      {
+        "hours": 3.2562814070351758,
+        "type": "Marginal product"
+      },
+      {
+        "hours": 3.3768844221105527,
+        "type": "Final grade"
+      },
+      {
+        "hours": 3.3768844221105527,
+        "type": "Average product"
+      },
+      {
+        "hours": 3.3768844221105527,
+        "type": "Marginal product"
+      },
+      {
+        "hours": 3.4974874371859297,
+        "type": "Final grade"
+      },
+      {
+        "hours": 3.4974874371859297,
+        "type": "Average product"
+      },
+      {
+        "hours": 3.4974874371859297,
+        "type": "Marginal product"
+      },
+      {
+        "hours": 3.618090452261306,
+        "type": "Final grade"
+      },
+      {
+        "hours": 3.618090452261306,
+        "type": "Average product"
+      },
+      {
+        "hours": 3.618090452261306,
+        "type": "Marginal product"
+      },
+      {
+        "hours": 3.738693467336683,
+        "type": "Final grade"
+      },
+      {
+        "hours": 3.738693467336683,
+        "type": "Average product"
+      },
+      {
+        "hours": 3.738693467336683,
+        "type": "Marginal product"
+      },
+      {
+        "hours": 3.85929648241206,
+        "type": "Final grade"
+      },
+      {
+        "hours": 3.85929648241206,
+        "type": "Average product"
+      },
+      {
+        "hours": 3.85929648241206,
+        "type": "Marginal product"
+      },
+      {
+        "hours": 3.979899497487437,
+        "type": "Final grade"
+      },
+      {
+        "hours": 3.979899497487437,
+        "type": "Average product"
+      },
+      {
+        "hours": 3.979899497487437,
+        "type": "Marginal product"
+      },
+      {
+        "hours": 4.100502512562814,
+        "type": "Final grade"
+      },
+      {
+        "hours": 4.100502512562814,
+        "type": "Average product"
+      },
+      {
+        "hours": 4.100502512562814,
+        "type": "Marginal product"
+      },
+      {
+        "hours": 4.221105527638191,
+        "type": "Final grade"
+      },
+      {
+        "hours": 4.221105527638191,
+        "type": "Average product"
+      },
+      {
+        "hours": 4.221105527638191,
+        "type": "Marginal product"
+      },
+      {
+        "hours": 4.341708542713568,
+        "type": "Final grade"
+      },
+      {
+        "hours": 4.341708542713568,
+        "type": "Average product"
+      },
+      {
+        "hours": 4.341708542713568,
+        "type": "Marginal product"
+      },
+      {
+        "hours": 4.4623115577889445,
+        "type": "Final grade"
+      },
+      {
+        "hours": 4.4623115577889445,
+        "type": "Average product"
+      },
+      {
+        "hours": 4.4623115577889445,
+        "type": "Marginal product"
+      },
+      {
+        "hours": 4.582914572864321,
+        "type": "Final grade"
+      },
+      {
+        "hours": 4.582914572864321,
+        "type": "Average product"
+      },
+      {
+        "hours": 4.582914572864321,
+        "type": "Marginal product"
+      },
+      {
+        "hours": 4.703517587939698,
+        "type": "Final grade"
+      },
+      {
+        "hours": 4.703517587939698,
+        "type": "Average product"
+      },
+      {
+        "hours": 4.703517587939698,
+        "type": "Marginal product"
+      },
+      {
+        "hours": 4.824120603015075,
+        "type": "Final grade"
+      },
+      {
+        "hours": 4.824120603015075,
+        "type": "Average product"
+      },
+      {
+        "hours": 4.824120603015075,
+        "type": "Marginal product"
+      },
+      {
+        "hours": 4.944723618090452,
+        "type": "Final grade"
+      },
+      {
+        "hours": 4.944723618090452,
+        "type": "Average product"
+      },
+      {
+        "hours": 4.944723618090452,
+        "type": "Marginal product"
+      },
+      {
+        "hours": 5.065326633165829,
+        "type": "Final grade"
+      },
+      {
+        "hours": 5.065326633165829,
+        "type": "Average product"
+      },
+      {
+        "hours": 5.065326633165829,
+        "type": "Marginal product"
+      },
+      {
+        "hours": 5.185929648241205,
+        "type": "Final grade"
+      },
+      {
+        "hours": 5.185929648241205,
+        "type": "Average product"
+      },
+      {
+        "hours": 5.185929648241205,
+        "type": "Marginal product"
+      },
+      {
+        "hours": 5.306532663316583,
+        "type": "Final grade"
+      },
+      {
+        "hours": 5.306532663316583,
+        "type": "Average product"
+      },
+      {
+        "hours": 5.306532663316583,
+        "type": "Marginal product"
+      },
+      {
+        "hours": 5.427135678391959,
+        "type": "Final grade"
+      },
+      {
+        "hours": 5.427135678391959,
+        "type": "Average product"
+      },
+      {
+        "hours": 5.427135678391959,
+        "type": "Marginal product"
+      },
+      {
+        "hours": 5.547738693467337,
+        "type": "Final grade"
+      },
+      {
+        "hours": 5.547738693467337,
+        "type": "Average product"
+      },
+      {
+        "hours": 5.547738693467337,
+        "type": "Marginal product"
+      },
+      {
+        "hours": 5.668341708542713,
+        "type": "Final grade"
+      },
+      {
+        "hours": 5.668341708542713,
+        "type": "Average product"
+      },
+      {
+        "hours": 5.668341708542713,
+        "type": "Marginal product"
+      },
+      {
+        "hours": 5.788944723618091,
+        "type": "Final grade"
+      },
+      {
+        "hours": 5.788944723618091,
+        "type": "Average product"
+      },
+      {
+        "hours": 5.788944723618091,
+        "type": "Marginal product"
+      },
+      {
+        "hours": 5.909547738693467,
+        "type": "Final grade"
+      },
+      {
+        "hours": 5.909547738693467,
+        "type": "Average product"
+      },
+      {
+        "hours": 5.909547738693467,
+        "type": "Marginal product"
+      },
+      {
+        "hours": 6.030150753768844,
+        "type": "Final grade"
+      },
+      {
+        "hours": 6.030150753768844,
+        "type": "Average product"
+      },
+      {
+        "hours": 6.030150753768844,
+        "type": "Marginal product"
+      },
+      {
+        "hours": 6.150753768844221,
+        "type": "Final grade"
+      },
+      {
+        "hours": 6.150753768844221,
+        "type": "Average product"
+      },
+      {
+        "hours": 6.150753768844221,
+        "type": "Marginal product"
+      },
+      {
+        "hours": 6.271356783919598,
+        "type": "Final grade"
+      },
+      {
+        "hours": 6.271356783919598,
+        "type": "Average product"
+      },
+      {
+        "hours": 6.271356783919598,
+        "type": "Marginal product"
+      },
+      {
+        "hours": 6.391959798994975,
+        "type": "Final grade"
+      },
+      {
+        "hours": 6.391959798994975,
+        "type": "Average product"
+      },
+      {
+        "hours": 6.391959798994975,
+        "type": "Marginal product"
+      },
+      {
+        "hours": 6.5125628140703515,
+        "type": "Final grade"
+      },
+      {
+        "hours": 6.5125628140703515,
+        "type": "Average product"
+      },
+      {
+        "hours": 6.5125628140703515,
+        "type": "Marginal product"
+      },
+      {
+        "hours": 6.633165829145728,
+        "type": "Final grade"
+      },
+      {
+        "hours": 6.633165829145728,
+        "type": "Average product"
+      },
+      {
+        "hours": 6.633165829145728,
+        "type": "Marginal product"
+      },
+      {
+        "hours": 6.7537688442211055,
+        "type": "Final grade"
+      },
+      {
+        "hours": 6.7537688442211055,
+        "type": "Average product"
+      },
+      {
+        "hours": 6.7537688442211055,
+        "type": "Marginal product"
+      },
+      {
+        "hours": 6.874371859296482,
+        "type": "Final grade"
+      },
+      {
+        "hours": 6.874371859296482,
+        "type": "Average product"
+      },
+      {
+        "hours": 6.874371859296482,
+        "type": "Marginal product"
+      },
+      {
+        "hours": 6.994974874371859,
+        "type": "Final grade"
+      },
+      {
+        "hours": 6.994974874371859,
+        "type": "Average product"
+      },
+      {
+        "hours": 6.994974874371859,
+        "type": "Marginal product"
+      },
+      {
+        "hours": 7.115577889447236,
+        "type": "Final grade"
+      },
+      {
+        "hours": 7.115577889447236,
+        "type": "Average product"
+      },
+      {
+        "hours": 7.115577889447236,
+        "type": "Marginal product"
+      },
+      {
+        "hours": 7.236180904522612,
+        "type": "Final grade"
+      },
+      {
+        "hours": 7.236180904522612,
+        "type": "Average product"
+      },
+      {
+        "hours": 7.236180904522612,
+        "type": "Marginal product"
+      },
+      {
+        "hours": 7.35678391959799,
+        "type": "Final grade"
+      },
+      {
+        "hours": 7.35678391959799,
+        "type": "Average product"
+      },
+      {
+        "hours": 7.35678391959799,
+        "type": "Marginal product"
+      },
+      {
+        "hours": 7.477386934673366,
+        "type": "Final grade"
+      },
+      {
+        "hours": 7.477386934673366,
+        "type": "Average product"
+      },
+      {
+        "hours": 7.477386934673366,
+        "type": "Marginal product"
+      },
+      {
+        "hours": 7.597989949748744,
+        "type": "Final grade"
+      },
+      {
+        "hours": 7.597989949748744,
+        "type": "Average product"
+      },
+      {
+        "hours": 7.597989949748744,
+        "type": "Marginal product"
+      },
+      {
+        "hours": 7.71859296482412,
+        "type": "Final grade"
+      },
+      {
+        "hours": 7.71859296482412,
+        "type": "Average product"
+      },
+      {
+        "hours": 7.71859296482412,
+        "type": "Marginal product"
+      },
+      {
+        "hours": 7.839195979899497,
+        "type": "Final grade"
+      },
+      {
+        "hours": 7.839195979899497,
+        "type": "Average product"
+      },
+      {
+        "hours": 7.839195979899497,
+        "type": "Marginal product"
+      },
+      {
+        "hours": 7.959798994974874,
+        "type": "Final grade"
+      },
+      {
+        "hours": 7.959798994974874,
+        "type": "Average product"
+      },
+      {
+        "hours": 7.959798994974874,
+        "type": "Marginal product"
+      },
+      {
+        "hours": 8.080402010050252,
+        "type": "Final grade"
+      },
+      {
+        "hours": 8.080402010050252,
+        "type": "Average product"
+      },
+      {
+        "hours": 8.080402010050252,
+        "type": "Marginal product"
+      },
+      {
+        "hours": 8.201005025125628,
+        "type": "Final grade"
+      },
+      {
+        "hours": 8.201005025125628,
+        "type": "Average product"
+      },
+      {
+        "hours": 8.201005025125628,
+        "type": "Marginal product"
+      },
+      {
+        "hours": 8.321608040201005,
+        "type": "Final grade"
+      },
+      {
+        "hours": 8.321608040201005,
+        "type": "Average product"
+      },
+      {
+        "hours": 8.321608040201005,
+        "type": "Marginal product"
+      },
+      {
+        "hours": 8.442211055276381,
+        "type": "Final grade"
+      },
+      {
+        "hours": 8.442211055276381,
+        "type": "Average product"
+      },
+      {
+        "hours": 8.442211055276381,
+        "type": "Marginal product"
+      },
+      {
+        "hours": 8.562814070351758,
+        "type": "Final grade"
+      },
+      {
+        "hours": 8.562814070351758,
+        "type": "Average product"
+      },
+      {
+        "hours": 8.562814070351758,
+        "type": "Marginal product"
+      },
+      {
+        "hours": 8.683417085427136,
+        "type": "Final grade"
+      },
+      {
+        "hours": 8.683417085427136,
+        "type": "Average product"
+      },
+      {
+        "hours": 8.683417085427136,
+        "type": "Marginal product"
+      },
+      {
+        "hours": 8.804020100502512,
+        "type": "Final grade"
+      },
+      {
+        "hours": 8.804020100502512,
+        "type": "Average product"
+      },
+      {
+        "hours": 8.804020100502512,
+        "type": "Marginal product"
+      },
+      {
+        "hours": 8.924623115577889,
+        "type": "Final grade"
+      },
+      {
+        "hours": 8.924623115577889,
+        "type": "Average product"
+      },
+      {
+        "hours": 8.924623115577889,
+        "type": "Marginal product"
+      },
+      {
+        "hours": 9.045226130653266,
+        "type": "Final grade"
+      },
+      {
+        "hours": 9.045226130653266,
+        "type": "Average product"
+      },
+      {
+        "hours": 9.045226130653266,
+        "type": "Marginal product"
+      },
+      {
+        "hours": 9.165829145728642,
+        "type": "Final grade"
+      },
+      {
+        "hours": 9.165829145728642,
+        "type": "Average product"
+      },
+      {
+        "hours": 9.165829145728642,
+        "type": "Marginal product"
+      },
+      {
+        "hours": 9.28643216080402,
+        "type": "Final grade"
+      },
+      {
+        "hours": 9.28643216080402,
+        "type": "Average product"
+      },
+      {
+        "hours": 9.28643216080402,
+        "type": "Marginal product"
+      },
+      {
+        "hours": 9.407035175879397,
+        "type": "Final grade"
+      },
+      {
+        "hours": 9.407035175879397,
+        "type": "Average product"
+      },
+      {
+        "hours": 9.407035175879397,
+        "type": "Marginal product"
+      },
+      {
+        "hours": 9.527638190954773,
+        "type": "Final grade"
+      },
+      {
+        "hours": 9.527638190954773,
+        "type": "Average product"
+      },
+      {
+        "hours": 9.527638190954773,
+        "type": "Marginal product"
+      },
+      {
+        "hours": 9.64824120603015,
+        "type": "Final grade"
+      },
+      {
+        "hours": 9.64824120603015,
+        "type": "Average product"
+      },
+      {
+        "hours": 9.64824120603015,
+        "type": "Marginal product"
+      },
+      {
+        "hours": 9.768844221105526,
+        "type": "Final grade"
+      },
+      {
+        "hours": 9.768844221105526,
+        "type": "Average product"
+      },
+      {
+        "hours": 9.768844221105526,
+        "type": "Marginal product"
+      },
+      {
+        "hours": 9.889447236180905,
+        "type": "Final grade"
+      },
+      {
+        "hours": 9.889447236180905,
+        "type": "Average product"
+      },
+      {
+        "hours": 9.889447236180905,
+        "type": "Marginal product"
+      },
+      {
+        "hours": 10.010050251256281,
+        "type": "Final grade"
+      },
+      {
+        "hours": 10.010050251256281,
+        "type": "Average product"
+      },
+      {
+        "hours": 10.010050251256281,
+        "type": "Marginal product"
+      },
+      {
+        "hours": 10.130653266331658,
+        "type": "Final grade"
+      },
+      {
+        "hours": 10.130653266331658,
+        "type": "Average product"
+      },
+      {
+        "hours": 10.130653266331658,
+        "type": "Marginal product"
+      },
+      {
+        "hours": 10.251256281407034,
+        "type": "Final grade"
+      },
+      {
+        "hours": 10.251256281407034,
+        "type": "Average product"
+      },
+      {
+        "hours": 10.251256281407034,
+        "type": "Marginal product"
+      },
+      {
+        "hours": 10.37185929648241,
+        "type": "Final grade"
+      },
+      {
+        "hours": 10.37185929648241,
+        "type": "Average product"
+      },
+      {
+        "hours": 10.37185929648241,
+        "type": "Marginal product"
+      },
+      {
+        "hours": 10.492462311557789,
+        "type": "Final grade"
+      },
+      {
+        "hours": 10.492462311557789,
+        "type": "Average product"
+      },
+      {
+        "hours": 10.492462311557789,
+        "type": "Marginal product"
+      },
+      {
+        "hours": 10.613065326633166,
+        "type": "Final grade"
+      },
+      {
+        "hours": 10.613065326633166,
+        "type": "Average product"
+      },
+      {
+        "hours": 10.613065326633166,
+        "type": "Marginal product"
+      },
+      {
+        "hours": 10.733668341708542,
+        "type": "Final grade"
+      },
+      {
+        "hours": 10.733668341708542,
+        "type": "Average product"
+      },
+      {
+        "hours": 10.733668341708542,
+        "type": "Marginal product"
+      },
+      {
+        "hours": 10.854271356783919,
+        "type": "Final grade"
+      },
+      {
+        "hours": 10.854271356783919,
+        "type": "Average product"
+      },
+      {
+        "hours": 10.854271356783919,
+        "type": "Marginal product"
+      },
+      {
+        "hours": 10.974874371859295,
+        "type": "Final grade"
+      },
+      {
+        "hours": 10.974874371859295,
+        "type": "Average product"
+      },
+      {
+        "hours": 10.974874371859295,
+        "type": "Marginal product"
+      },
+      {
+        "hours": 11.095477386934673,
+        "type": "Final grade"
+      },
+      {
+        "hours": 11.095477386934673,
+        "type": "Average product"
+      },
+      {
+        "hours": 11.095477386934673,
+        "type": "Marginal product"
+      },
+      {
+        "hours": 11.21608040201005,
+        "type": "Final grade"
+      },
+      {
+        "hours": 11.21608040201005,
+        "type": "Average product"
+      },
+      {
+        "hours": 11.21608040201005,
+        "type": "Marginal product"
+      },
+      {
+        "hours": 11.336683417085426,
+        "type": "Final grade"
+      },
+      {
+        "hours": 11.336683417085426,
+        "type": "Average product"
+      },
+      {
+        "hours": 11.336683417085426,
+        "type": "Marginal product"
+      },
+      {
+        "hours": 11.457286432160803,
+        "type": "Final grade"
+      },
+      {
+        "hours": 11.457286432160803,
+        "type": "Average product"
+      },
+      {
+        "hours": 11.457286432160803,
+        "type": "Marginal product"
+      },
+      {
+        "hours": 11.577889447236181,
+        "type": "Final grade"
+      },
+      {
+        "hours": 11.577889447236181,
+        "type": "Average product"
+      },
+      {
+        "hours": 11.577889447236181,
+        "type": "Marginal product"
+      },
+      {
+        "hours": 11.698492462311558,
+        "type": "Final grade"
+      },
+      {
+        "hours": 11.698492462311558,
+        "type": "Average product"
+      },
+      {
+        "hours": 11.698492462311558,
+        "type": "Marginal product"
+      },
+      {
+        "hours": 11.819095477386934,
+        "type": "Final grade"
+      },
+      {
+        "hours": 11.819095477386934,
+        "type": "Average product"
+      },
+      {
+        "hours": 11.819095477386934,
+        "type": "Marginal product"
+      },
+      {
+        "hours": 11.93969849246231,
+        "type": "Final grade"
+      },
+      {
+        "hours": 11.93969849246231,
+        "type": "Average product"
+      },
+      {
+        "hours": 11.93969849246231,
+        "type": "Marginal product"
+      },
+      {
+        "hours": 12.060301507537687,
+        "type": "Final grade"
+      },
+      {
+        "hours": 12.060301507537687,
+        "type": "Average product"
+      },
+      {
+        "hours": 12.060301507537687,
+        "type": "Marginal product"
+      },
+      {
+        "hours": 12.180904522613066,
+        "type": "Final grade"
+      },
+      {
+        "hours": 12.180904522613066,
+        "type": "Average product"
+      },
+      {
+        "hours": 12.180904522613066,
+        "type": "Marginal product"
+      },
+      {
+        "hours": 12.301507537688442,
+        "type": "Final grade"
+      },
+      {
+        "hours": 12.301507537688442,
+        "type": "Average product"
+      },
+      {
+        "hours": 12.301507537688442,
+        "type": "Marginal product"
+      },
+      {
+        "hours": 12.422110552763819,
+        "type": "Final grade"
+      },
+      {
+        "hours": 12.422110552763819,
+        "type": "Average product"
+      },
+      {
+        "hours": 12.422110552763819,
+        "type": "Marginal product"
+      },
+      {
+        "hours": 12.542713567839195,
+        "type": "Final grade"
+      },
+      {
+        "hours": 12.542713567839195,
+        "type": "Average product"
+      },
+      {
+        "hours": 12.542713567839195,
+        "type": "Marginal product"
+      },
+      {
+        "hours": 12.663316582914572,
+        "type": "Final grade"
+      },
+      {
+        "hours": 12.663316582914572,
+        "type": "Average product"
+      },
+      {
+        "hours": 12.663316582914572,
+        "type": "Marginal product"
+      },
+      {
+        "hours": 12.78391959798995,
+        "type": "Final grade"
+      },
+      {
+        "hours": 12.78391959798995,
+        "type": "Average product"
+      },
+      {
+        "hours": 12.78391959798995,
+        "type": "Marginal product"
+      },
+      {
+        "hours": 12.904522613065327,
+        "type": "Final grade"
+      },
+      {
+        "hours": 12.904522613065327,
+        "type": "Average product"
+      },
+      {
+        "hours": 12.904522613065327,
+        "type": "Marginal product"
+      },
+      {
+        "hours": 13.025125628140703,
+        "type": "Final grade"
+      },
+      {
+        "hours": 13.025125628140703,
+        "type": "Average product"
+      },
+      {
+        "hours": 13.025125628140703,
+        "type": "Marginal product"
+      },
+      {
+        "hours": 13.14572864321608,
+        "type": "Final grade"
+      },
+      {
+        "hours": 13.14572864321608,
+        "type": "Average product"
+      },
+      {
+        "hours": 13.14572864321608,
+        "type": "Marginal product"
+      },
+      {
+        "hours": 13.266331658291456,
+        "type": "Final grade"
+      },
+      {
+        "hours": 13.266331658291456,
+        "type": "Average product"
+      },
+      {
+        "hours": 13.266331658291456,
+        "type": "Marginal product"
+      },
+      {
+        "hours": 13.386934673366834,
+        "type": "Final grade"
+      },
+      {
+        "hours": 13.386934673366834,
+        "type": "Average product"
+      },
+      {
+        "hours": 13.386934673366834,
+        "type": "Marginal product"
+      },
+      {
+        "hours": 13.507537688442211,
+        "type": "Final grade"
+      },
+      {
+        "hours": 13.507537688442211,
+        "type": "Average product"
+      },
+      {
+        "hours": 13.507537688442211,
+        "type": "Marginal product"
+      },
+      {
+        "hours": 13.628140703517587,
+        "type": "Final grade"
+      },
+      {
+        "hours": 13.628140703517587,
+        "type": "Average product"
+      },
+      {
+        "hours": 13.628140703517587,
+        "type": "Marginal product"
+      },
+      {
+        "hours": 13.748743718592964,
+        "type": "Final grade"
+      },
+      {
+        "hours": 13.748743718592964,
+        "type": "Average product"
+      },
+      {
+        "hours": 13.748743718592964,
+        "type": "Marginal product"
+      },
+      {
+        "hours": 13.86934673366834,
+        "type": "Final grade"
+      },
+      {
+        "hours": 13.86934673366834,
+        "type": "Average product"
+      },
+      {
+        "hours": 13.86934673366834,
+        "type": "Marginal product"
+      },
+      {
+        "hours": 13.989949748743719,
+        "type": "Final grade"
+      },
+      {
+        "hours": 13.989949748743719,
+        "type": "Average product"
+      },
+      {
+        "hours": 13.989949748743719,
+        "type": "Marginal product"
+      },
+      {
+        "hours": 14.110552763819095,
+        "type": "Final grade"
+      },
+      {
+        "hours": 14.110552763819095,
+        "type": "Average product"
+      },
+      {
+        "hours": 14.110552763819095,
+        "type": "Marginal product"
+      },
+      {
+        "hours": 14.231155778894472,
+        "type": "Final grade"
+      },
+      {
+        "hours": 14.231155778894472,
+        "type": "Average product"
+      },
+      {
+        "hours": 14.231155778894472,
+        "type": "Marginal product"
+      },
+      {
+        "hours": 14.351758793969848,
+        "type": "Final grade"
+      },
+      {
+        "hours": 14.351758793969848,
+        "type": "Average product"
+      },
+      {
+        "hours": 14.351758793969848,
+        "type": "Marginal product"
+      },
+      {
+        "hours": 14.472361809045225,
+        "type": "Final grade"
+      },
+      {
+        "hours": 14.472361809045225,
+        "type": "Average product"
+      },
+      {
+        "hours": 14.472361809045225,
+        "type": "Marginal product"
+      },
+      {
+        "hours": 14.592964824120603,
+        "type": "Final grade"
+      },
+      {
+        "hours": 14.592964824120603,
+        "type": "Average product"
+      },
+      {
+        "hours": 14.592964824120603,
+        "type": "Marginal product"
+      },
+      {
+        "hours": 14.71356783919598,
+        "type": "Final grade"
+      },
+      {
+        "hours": 14.71356783919598,
+        "type": "Average product"
+      },
+      {
+        "hours": 14.71356783919598,
+        "type": "Marginal product"
+      },
+      {
+        "hours": 14.834170854271356,
+        "type": "Final grade"
+      },
+      {
+        "hours": 14.834170854271356,
+        "type": "Average product"
+      },
+      {
+        "hours": 14.834170854271356,
+        "type": "Marginal product"
+      },
+      {
+        "hours": 14.954773869346733,
+        "type": "Final grade"
+      },
+      {
+        "hours": 14.954773869346733,
+        "type": "Average product"
+      },
+      {
+        "hours": 14.954773869346733,
+        "type": "Marginal product"
+      },
+      {
+        "hours": 15.07537688442211,
+        "type": "Final grade"
+      },
+      {
+        "hours": 15.07537688442211,
+        "type": "Average product"
+      },
+      {
+        "hours": 15.07537688442211,
+        "type": "Marginal product"
+      },
+      {
+        "hours": 15.195979899497488,
+        "type": "Final grade"
+      },
+      {
+        "hours": 15.195979899497488,
+        "type": "Average product"
+      },
+      {
+        "hours": 15.195979899497488,
+        "type": "Marginal product"
+      },
+      {
+        "hours": 15.316582914572864,
+        "type": "Final grade"
+      },
+      {
+        "hours": 15.316582914572864,
+        "type": "Average product"
+      },
+      {
+        "hours": 15.316582914572864,
+        "type": "Marginal product"
+      },
+      {
+        "hours": 15.43718592964824,
+        "type": "Final grade"
+      },
+      {
+        "hours": 15.43718592964824,
+        "type": "Average product"
+      },
+      {
+        "hours": 15.43718592964824,
+        "type": "Marginal product"
+      },
+      {
+        "hours": 15.557788944723617,
+        "type": "Final grade"
+      },
+      {
+        "hours": 15.557788944723617,
+        "type": "Average product"
+      },
+      {
+        "hours": 15.557788944723617,
+        "type": "Marginal product"
+      },
+      {
+        "hours": 15.678391959798994,
+        "type": "Final grade"
+      },
+      {
+        "hours": 15.678391959798994,
+        "type": "Average product"
+      },
+      {
+        "hours": 15.678391959798994,
+        "type": "Marginal product"
+      },
+      {
+        "hours": 15.798994974874372,
+        "type": "Final grade"
+      },
+      {
+        "hours": 15.798994974874372,
+        "type": "Average product"
+      },
+      {
+        "hours": 15.798994974874372,
+        "type": "Marginal product"
+      },
+      {
+        "hours": 15.919597989949748,
+        "type": "Final grade"
+      },
+      {
+        "hours": 15.919597989949748,
+        "type": "Average product"
+      },
+      {
+        "hours": 15.919597989949748,
+        "type": "Marginal product"
+      },
+      {
+        "hours": 16.040201005025125,
+        "type": "Final grade"
+      },
+      {
+        "hours": 16.040201005025125,
+        "type": "Average product"
+      },
+      {
+        "hours": 16.040201005025125,
+        "type": "Marginal product"
+      },
+      {
+        "hours": 16.160804020100503,
+        "type": "Final grade"
+      },
+      {
+        "hours": 16.160804020100503,
+        "type": "Average product"
+      },
+      {
+        "hours": 16.160804020100503,
+        "type": "Marginal product"
+      },
+      {
+        "hours": 16.281407035175878,
+        "type": "Final grade"
+      },
+      {
+        "hours": 16.281407035175878,
+        "type": "Average product"
+      },
+      {
+        "hours": 16.281407035175878,
+        "type": "Marginal product"
+      },
+      {
+        "hours": 16.402010050251256,
+        "type": "Final grade"
+      },
+      {
+        "hours": 16.402010050251256,
+        "type": "Average product"
+      },
+      {
+        "hours": 16.402010050251256,
+        "type": "Marginal product"
+      },
+      {
+        "hours": 16.52261306532663,
+        "type": "Final grade"
+      },
+      {
+        "hours": 16.52261306532663,
+        "type": "Average product"
+      },
+      {
+        "hours": 16.52261306532663,
+        "type": "Marginal product"
+      },
+      {
+        "hours": 16.64321608040201,
+        "type": "Final grade"
+      },
+      {
+        "hours": 16.64321608040201,
+        "type": "Average product"
+      },
+      {
+        "hours": 16.64321608040201,
+        "type": "Marginal product"
+      },
+      {
+        "hours": 16.763819095477388,
+        "type": "Final grade"
+      },
+      {
+        "hours": 16.763819095477388,
+        "type": "Average product"
+      },
+      {
+        "hours": 16.763819095477388,
+        "type": "Marginal product"
+      },
+      {
+        "hours": 16.884422110552762,
+        "type": "Final grade"
+      },
+      {
+        "hours": 16.884422110552762,
+        "type": "Average product"
+      },
+      {
+        "hours": 16.884422110552762,
+        "type": "Marginal product"
+      },
+      {
+        "hours": 17.00502512562814,
+        "type": "Final grade"
+      },
+      {
+        "hours": 17.00502512562814,
+        "type": "Average product"
+      },
+      {
+        "hours": 17.00502512562814,
+        "type": "Marginal product"
+      },
+      {
+        "hours": 17.125628140703515,
+        "type": "Final grade"
+      },
+      {
+        "hours": 17.125628140703515,
+        "type": "Average product"
+      },
+      {
+        "hours": 17.125628140703515,
+        "type": "Marginal product"
+      },
+      {
+        "hours": 17.246231155778894,
+        "type": "Final grade"
+      },
+      {
+        "hours": 17.246231155778894,
+        "type": "Average product"
+      },
+      {
+        "hours": 17.246231155778894,
+        "type": "Marginal product"
+      },
+      {
+        "hours": 17.366834170854272,
+        "type": "Final grade"
+      },
+      {
+        "hours": 17.366834170854272,
+        "type": "Average product"
+      },
+      {
+        "hours": 17.366834170854272,
+        "type": "Marginal product"
+      },
+      {
+        "hours": 17.487437185929647,
+        "type": "Final grade"
+      },
+      {
+        "hours": 17.487437185929647,
+        "type": "Average product"
+      },
+      {
+        "hours": 17.487437185929647,
+        "type": "Marginal product"
+      },
+      {
+        "hours": 17.608040201005025,
+        "type": "Final grade"
+      },
+      {
+        "hours": 17.608040201005025,
+        "type": "Average product"
+      },
+      {
+        "hours": 17.608040201005025,
+        "type": "Marginal product"
+      },
+      {
+        "hours": 17.7286432160804,
+        "type": "Final grade"
+      },
+      {
+        "hours": 17.7286432160804,
+        "type": "Average product"
+      },
+      {
+        "hours": 17.7286432160804,
+        "type": "Marginal product"
+      },
+      {
+        "hours": 17.849246231155778,
+        "type": "Final grade"
+      },
+      {
+        "hours": 17.849246231155778,
+        "type": "Average product"
+      },
+      {
+        "hours": 17.849246231155778,
+        "type": "Marginal product"
+      },
+      {
+        "hours": 17.969849246231156,
+        "type": "Final grade"
+      },
+      {
+        "hours": 17.969849246231156,
+        "type": "Average product"
+      },
+      {
+        "hours": 17.969849246231156,
+        "type": "Marginal product"
+      },
+      {
+        "hours": 18.09045226130653,
+        "type": "Final grade"
+      },
+      {
+        "hours": 18.09045226130653,
+        "type": "Average product"
+      },
+      {
+        "hours": 18.09045226130653,
+        "type": "Marginal product"
+      },
+      {
+        "hours": 18.21105527638191,
+        "type": "Final grade"
+      },
+      {
+        "hours": 18.21105527638191,
+        "type": "Average product"
+      },
+      {
+        "hours": 18.21105527638191,
+        "type": "Marginal product"
+      },
+      {
+        "hours": 18.331658291457284,
+        "type": "Final grade"
+      },
+      {
+        "hours": 18.331658291457284,
+        "type": "Average product"
+      },
+      {
+        "hours": 18.331658291457284,
+        "type": "Marginal product"
+      },
+      {
+        "hours": 18.452261306532662,
+        "type": "Final grade"
+      },
+      {
+        "hours": 18.452261306532662,
+        "type": "Average product"
+      },
+      {
+        "hours": 18.452261306532662,
+        "type": "Marginal product"
+      },
+      {
+        "hours": 18.57286432160804,
+        "type": "Final grade"
+      },
+      {
+        "hours": 18.57286432160804,
+        "type": "Average product"
+      },
+      {
+        "hours": 18.57286432160804,
+        "type": "Marginal product"
+      },
+      {
+        "hours": 18.693467336683415,
+        "type": "Final grade"
+      },
+      {
+        "hours": 18.693467336683415,
+        "type": "Average product"
+      },
+      {
+        "hours": 18.693467336683415,
+        "type": "Marginal product"
+      },
+      {
+        "hours": 18.814070351758794,
+        "type": "Final grade"
+      },
+      {
+        "hours": 18.814070351758794,
+        "type": "Average product"
+      },
+      {
+        "hours": 18.814070351758794,
+        "type": "Marginal product"
+      },
+      {
+        "hours": 18.93467336683417,
+        "type": "Final grade"
+      },
+      {
+        "hours": 18.93467336683417,
+        "type": "Average product"
+      },
+      {
+        "hours": 18.93467336683417,
+        "type": "Marginal product"
+      },
+      {
+        "hours": 19.055276381909547,
+        "type": "Final grade"
+      },
+      {
+        "hours": 19.055276381909547,
+        "type": "Average product"
+      },
+      {
+        "hours": 19.055276381909547,
+        "type": "Marginal product"
+      },
+      {
+        "hours": 19.175879396984925,
+        "type": "Final grade"
+      },
+      {
+        "hours": 19.175879396984925,
+        "type": "Average product"
+      },
+      {
+        "hours": 19.175879396984925,
+        "type": "Marginal product"
+      },
+      {
+        "hours": 19.2964824120603,
+        "type": "Final grade"
+      },
+      {
+        "hours": 19.2964824120603,
+        "type": "Average product"
+      },
+      {
+        "hours": 19.2964824120603,
+        "type": "Marginal product"
+      },
+      {
+        "hours": 19.417085427135678,
+        "type": "Final grade"
+      },
+      {
+        "hours": 19.417085427135678,
+        "type": "Average product"
+      },
+      {
+        "hours": 19.417085427135678,
+        "type": "Marginal product"
+      },
+      {
+        "hours": 19.537688442211053,
+        "type": "Final grade"
+      },
+      {
+        "hours": 19.537688442211053,
+        "type": "Average product"
+      },
+      {
+        "hours": 19.537688442211053,
+        "type": "Marginal product"
+      },
+      {
+        "hours": 19.65829145728643,
+        "type": "Final grade"
+      },
+      {
+        "hours": 19.65829145728643,
+        "type": "Average product"
+      },
+      {
+        "hours": 19.65829145728643,
+        "type": "Marginal product"
+      },
+      {
+        "hours": 19.77889447236181,
+        "type": "Final grade"
+      },
+      {
+        "hours": 19.77889447236181,
+        "type": "Average product"
+      },
+      {
+        "hours": 19.77889447236181,
+        "type": "Marginal product"
+      },
+      {
+        "hours": 19.899497487437184,
+        "type": "Final grade"
+      },
+      {
+        "hours": 19.899497487437184,
+        "type": "Average product"
+      },
+      {
+        "hours": 19.899497487437184,
+        "type": "Marginal product"
+      },
+      {
+        "hours": 20.020100502512562,
+        "type": "Final grade"
+      },
+      {
+        "hours": 20.020100502512562,
+        "type": "Average product"
+      },
+      {
+        "hours": 20.020100502512562,
+        "type": "Marginal product"
+      },
+      {
+        "hours": 20.140703517587937,
+        "type": "Final grade"
+      },
+      {
+        "hours": 20.140703517587937,
+        "type": "Average product"
+      },
+      {
+        "hours": 20.140703517587937,
+        "type": "Marginal product"
+      },
+      {
+        "hours": 20.261306532663315,
+        "type": "Final grade"
+      },
+      {
+        "hours": 20.261306532663315,
+        "type": "Average product"
+      },
+      {
+        "hours": 20.261306532663315,
+        "type": "Marginal product"
+      },
+      {
+        "hours": 20.381909547738694,
+        "type": "Final grade"
+      },
+      {
+        "hours": 20.381909547738694,
+        "type": "Average product"
+      },
+      {
+        "hours": 20.381909547738694,
+        "type": "Marginal product"
+      },
+      {
+        "hours": 20.50251256281407,
+        "type": "Final grade"
+      },
+      {
+        "hours": 20.50251256281407,
+        "type": "Average product"
+      },
+      {
+        "hours": 20.50251256281407,
+        "type": "Marginal product"
+      },
+      {
+        "hours": 20.623115577889447,
+        "type": "Final grade"
+      },
+      {
+        "hours": 20.623115577889447,
+        "type": "Average product"
+      },
+      {
+        "hours": 20.623115577889447,
+        "type": "Marginal product"
+      },
+      {
+        "hours": 20.74371859296482,
+        "type": "Final grade"
+      },
+      {
+        "hours": 20.74371859296482,
+        "type": "Average product"
+      },
+      {
+        "hours": 20.74371859296482,
+        "type": "Marginal product"
+      },
+      {
+        "hours": 20.8643216080402,
+        "type": "Final grade"
+      },
+      {
+        "hours": 20.8643216080402,
+        "type": "Average product"
+      },
+      {
+        "hours": 20.8643216080402,
+        "type": "Marginal product"
+      },
+      {
+        "hours": 20.984924623115578,
+        "type": "Final grade"
+      },
+      {
+        "hours": 20.984924623115578,
+        "type": "Average product"
+      },
+      {
+        "hours": 20.984924623115578,
+        "type": "Marginal product"
+      },
+      {
+        "hours": 21.105527638190953,
+        "type": "Final grade"
+      },
+      {
+        "hours": 21.105527638190953,
+        "type": "Average product"
+      },
+      {
+        "hours": 21.105527638190953,
+        "type": "Marginal product"
+      },
+      {
+        "hours": 21.22613065326633,
+        "type": "Final grade"
+      },
+      {
+        "hours": 21.22613065326633,
+        "type": "Average product"
+      },
+      {
+        "hours": 21.22613065326633,
+        "type": "Marginal product"
+      },
+      {
+        "hours": 21.346733668341706,
+        "type": "Final grade"
+      },
+      {
+        "hours": 21.346733668341706,
+        "type": "Average product"
+      },
+      {
+        "hours": 21.346733668341706,
+        "type": "Marginal product"
+      },
+      {
+        "hours": 21.467336683417084,
+        "type": "Final grade"
+      },
+      {
+        "hours": 21.467336683417084,
+        "type": "Average product"
+      },
+      {
+        "hours": 21.467336683417084,
+        "type": "Marginal product"
+      },
+      {
+        "hours": 21.587939698492463,
+        "type": "Final grade"
+      },
+      {
+        "hours": 21.587939698492463,
+        "type": "Average product"
+      },
+      {
+        "hours": 21.587939698492463,
+        "type": "Marginal product"
+      },
+      {
+        "hours": 21.708542713567837,
+        "type": "Final grade"
+      },
+      {
+        "hours": 21.708542713567837,
+        "type": "Average product"
+      },
+      {
+        "hours": 21.708542713567837,
+        "type": "Marginal product"
+      },
+      {
+        "hours": 21.829145728643216,
+        "type": "Final grade"
+      },
+      {
+        "hours": 21.829145728643216,
+        "type": "Average product"
+      },
+      {
+        "hours": 21.829145728643216,
+        "type": "Marginal product"
+      },
+      {
+        "hours": 21.94974874371859,
+        "type": "Final grade"
+      },
+      {
+        "hours": 21.94974874371859,
+        "type": "Average product"
+      },
+      {
+        "hours": 21.94974874371859,
+        "type": "Marginal product"
+      },
+      {
+        "hours": 22.07035175879397,
+        "type": "Final grade"
+      },
+      {
+        "hours": 22.07035175879397,
+        "type": "Average product"
+      },
+      {
+        "hours": 22.07035175879397,
+        "type": "Marginal product"
+      },
+      {
+        "hours": 22.190954773869347,
+        "type": "Final grade"
+      },
+      {
+        "hours": 22.190954773869347,
+        "type": "Average product"
+      },
+      {
+        "hours": 22.190954773869347,
+        "type": "Marginal product"
+      },
+      {
+        "hours": 22.31155778894472,
+        "type": "Final grade"
+      },
+      {
+        "hours": 22.31155778894472,
+        "type": "Average product"
+      },
+      {
+        "hours": 22.31155778894472,
+        "type": "Marginal product"
+      },
+      {
+        "hours": 22.4321608040201,
+        "type": "Final grade"
+      },
+      {
+        "hours": 22.4321608040201,
+        "type": "Average product"
+      },
+      {
+        "hours": 22.4321608040201,
+        "type": "Marginal product"
+      },
+      {
+        "hours": 22.552763819095475,
+        "type": "Final grade"
+      },
+      {
+        "hours": 22.552763819095475,
+        "type": "Average product"
+      },
+      {
+        "hours": 22.552763819095475,
+        "type": "Marginal product"
+      },
+      {
+        "hours": 22.673366834170853,
+        "type": "Final grade"
+      },
+      {
+        "hours": 22.673366834170853,
+        "type": "Average product"
+      },
+      {
+        "hours": 22.673366834170853,
+        "type": "Marginal product"
+      },
+      {
+        "hours": 22.79396984924623,
+        "type": "Final grade"
+      },
+      {
+        "hours": 22.79396984924623,
+        "type": "Average product"
+      },
+      {
+        "hours": 22.79396984924623,
+        "type": "Marginal product"
+      },
+      {
+        "hours": 22.914572864321606,
+        "type": "Final grade"
+      },
+      {
+        "hours": 22.914572864321606,
+        "type": "Average product"
+      },
+      {
+        "hours": 22.914572864321606,
+        "type": "Marginal product"
+      },
+      {
+        "hours": 23.035175879396984,
+        "type": "Final grade"
+      },
+      {
+        "hours": 23.035175879396984,
+        "type": "Average product"
+      },
+      {
+        "hours": 23.035175879396984,
+        "type": "Marginal product"
+      },
+      {
+        "hours": 23.155778894472363,
+        "type": "Final grade"
+      },
+      {
+        "hours": 23.155778894472363,
+        "type": "Average product"
+      },
+      {
+        "hours": 23.155778894472363,
+        "type": "Marginal product"
+      },
+      {
+        "hours": 23.276381909547737,
+        "type": "Final grade"
+      },
+      {
+        "hours": 23.276381909547737,
+        "type": "Average product"
+      },
+      {
+        "hours": 23.276381909547737,
+        "type": "Marginal product"
+      },
+      {
+        "hours": 23.396984924623116,
+        "type": "Final grade"
+      },
+      {
+        "hours": 23.396984924623116,
+        "type": "Average product"
+      },
+      {
+        "hours": 23.396984924623116,
+        "type": "Marginal product"
+      },
+      {
+        "hours": 23.51758793969849,
+        "type": "Final grade"
+      },
+      {
+        "hours": 23.51758793969849,
+        "type": "Average product"
+      },
+      {
+        "hours": 23.51758793969849,
+        "type": "Marginal product"
+      },
+      {
+        "hours": 23.63819095477387,
+        "type": "Final grade"
+      },
+      {
+        "hours": 23.63819095477387,
+        "type": "Average product"
+      },
+      {
+        "hours": 23.63819095477387,
+        "type": "Marginal product"
+      },
+      {
+        "hours": 23.758793969849247,
+        "type": "Final grade"
+      },
+      {
+        "hours": 23.758793969849247,
+        "type": "Average product"
+      },
+      {
+        "hours": 23.758793969849247,
+        "type": "Marginal product"
+      },
+      {
+        "hours": 23.87939698492462,
+        "type": "Final grade"
+      },
+      {
+        "hours": 23.87939698492462,
+        "type": "Average product"
+      },
+      {
+        "hours": 23.87939698492462,
+        "type": "Marginal product"
+      },
+      {
+        "hours": 24.0,
+        "type": "Final grade"
+      },
+      {
+        "hours": 24.0,
+        "type": "Average product"
+      },
+      {
+        "hours": 24.0,
+        "type": "Marginal product"
+      }
+    ]
+  },
+  "height": 400,
+  "layer": [
+    {
+      "encoding": {
+        "color": {
+          "field": "type",
+          "legend": {
+            "title": null
+          },
+          "sort": [
+            "Final grade",
+            "Average product",
+            "Marginal product"
+          ],
+          "title": "Grade",
+          "type": "nominal"
+        },
+        "x": {
+          "field": "hours",
+          "title": "Hours of study per day",
+          "type": "quantitative"
+        },
+        "y": {
+          "field": "y",
+          "scale": {
+            "domainMax": 95
+          },
+          "title": "Grade",
+          "type": "quantitative"
+        }
+      },
+      "mark": {
+        "clip": true,
+        "type": "line"
+      },
+      "selection": {
+        "selector001": {
+          "bind": {
+            "input": "range",
+            "max": 40,
+            "min": 1,
+            "name": "A:",
+            "step": 1
+          },
+          "fields": [
+            "A"
+          ],
+          "init": {
+            "A": 24
+          },
+          "type": "single"
+        },
+        "selector002": {
+          "bind": {
+            "input": "range",
+            "max": 0.99,
+            "min": 0.01,
+            "name": "\u03b1:",
+            "step": 0.01
+          },
+          "fields": [
+            "alpha"
+          ],
+          "init": {
+            "alpha": 0.6
+          },
+          "type": "single"
+        },
+        "selector003": {
+          "bind": {
+            "input": "range",
+            "max": 100,
+            "min": 0,
+            "name": "m:",
+            "step": 1
+          },
+          "fields": [
+            "m"
+          ],
+          "init": {
+            "m": 90
+          },
+          "type": "single"
+        }
+      },
+      "transform": [
+        {
+          "as": "y",
+          "calculate": "((((datum.type === 'Final grade') * min(selector003.m,(selector001.A * pow(max(0,datum.hours),selector002.alpha)))) + ((datum.type === 'Average product') * (min(selector003.m,(selector001.A * pow(max(0,datum.hours),selector002.alpha))) / max(1,datum.hours)))) + ((datum.type === 'Marginal product') * ((min(selector003.m,(selector001.A * pow(max(0,datum.hours),selector002.alpha))) - min(selector003.m,(selector001.A * pow(max(0,(datum.hours - 0.12060301507537688)),selector002.alpha)))) / 0.12060301507537688)))"
+        }
+      ]
+    },
+    {
+      "encoding": {
+        "opacity": {
+          "value": 0
+        },
+        "tooltip": [
+          {
+            "field": "hours",
+            "format": ".1f",
+            "title": "Hours",
+            "type": "quantitative"
+          },
+          {
+            "field": "Final grade",
+            "format": ".1f",
+            "title": "Final grade",
+            "type": "quantitative"
+          },
+          {
+            "field": "Average product",
+            "format": ".1f",
+            "title": "Average product",
+            "type": "quantitative"
+          },
+          {
+            "field": "Marginal product",
+            "format": ".1f",
+            "title": "Marginal product",
+            "type": "quantitative"
+          }
+        ],
+        "x": {
+          "field": "hours",
+          "title": "Hours of study per day",
+          "type": "quantitative"
+        }
+      },
+      "mark": "point",
+      "selection": {
+        "selector004": {
+          "clear": "mouseout",
+          "empty": "none",
+          "fields": [
+            "hours"
+          ],
+          "nearest": true,
+          "on": "mouseover",
+          "type": "single"
+        }
+      },
+      "transform": [
+        {
+          "as": "Final grade",
+          "calculate": "min(selector003.m,(selector001.A * pow(max(0,datum.hours),selector002.alpha)))"
+        },
+        {
+          "as": "Average product",
+          "calculate": "(min(selector003.m,(selector001.A * pow(max(0,datum.hours),selector002.alpha))) / max(1,datum.hours))"
+        },
+        {
+          "as": "Marginal product",
+          "calculate": "((min(selector003.m,(selector001.A * pow(max(0,datum.hours),selector002.alpha))) - min(selector003.m,(selector001.A * pow(max(0,(datum.hours - 0.12060301507537688)),selector002.alpha)))) / 0.12060301507537688)"
+        }
+      ]
+    },
+    {
+      "encoding": {
+        "x": {
+          "field": "hours",
+          "title": "Hours of study per day",
+          "type": "quantitative"
+        }
+      },
+      "mark": {
+        "color": "gray",
+        "type": "rule"
+      },
+      "transform": [
+        {
+          "filter": {
+            "selection": "selector004"
+          }
+        }
+      ]
+    }
+  ],
+  "title": "Production function: input study hours, output final grade",
+  "width": 600
+};
+        const options = {"renderer": "canvas", "actions": false};
+        buildChart(spec, options);
+      </script>
+      <div id='custom-tooltip-element'></div>
+
+
+      <script type="text/javascript">
+function main() {
+  for (const e of document.querySelectorAll(".equations span.kx")) {
+    katex.render(e.innerText, e);
+    e.classList.remove("kx");
+  }
+}
+
+window.addEventListener("DOMContentLoaded", main);      </script>
+
+  </body>
+
+</html>

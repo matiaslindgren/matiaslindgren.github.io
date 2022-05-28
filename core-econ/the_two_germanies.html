@@ -1,0 +1,2364 @@
+<!DOCTYPE HTML>
+<html lang="en">
+
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>The two Germanies
+</title>
+
+      <script src="https://cdn.jsdelivr.net/npm/vega@5" crossorigin="anonymous">
+      </script>
+      <script src="https://cdn.jsdelivr.net/npm/vega-lite@4" crossorigin="anonymous">
+      </script>
+      <script src="https://cdn.jsdelivr.net/npm/vega-embed@6" crossorigin="anonymous">
+      </script>
+
+
+
+    <style>
+body {
+  font-family: Georgia, serif;
+  padding: 1rem;
+}
+
+a {
+  text-decoration: none;
+}
+
+a:hover {
+  text-decoration: underline;
+}
+
+#vega-container {
+  max-width: 70em;
+  width: 100%;
+}
+
+form.vega-bindings .vega-bind label {
+  display: grid;
+  grid-template-columns: 6em 14em 6em;
+}
+
+form.vega-bindings .vega-bind label span {
+  margin-left: 0.5em;
+}
+
+dl {
+  padding-top: 1rem;
+  padding-bottom: 1rem;
+  max-width: 800px;
+}
+
+dl,
+dd {
+  font-size: 0.9rem;
+}
+
+dt {
+  font-weight: bold;
+}
+
+dd {
+  margin-bottom: 1rem;
+}
+
+ul.data-source-url-list {
+  padding: 0;
+  list-style: none;
+}
+
+table {
+  border-collapse: collapse;
+  width: 100%;
+  max-width: 800px;
+}
+
+table td {
+  vertical-align: baseline;
+}
+
+table tr {
+  border-bottom: 1px solid lightgray;
+}
+
+table.tooltip {
+  border-collapse: initial;
+  width: initial;
+  max-width: initial;
+}
+
+table.tooltip tbody tr td {
+  vertical-align: middle;
+}
+
+#custom-tooltip-element.visible {
+  visibility: visible;
+}
+
+#custom-tooltip-element {
+  visibility: hidden;
+  padding: 0.5rem;
+  position: fixed;
+  z-index: 1000;
+  font-size: 0.8rem;
+  border-radius: 3px;
+  box-shadow: 2px 2px 4px rgba(0, 0, 0, 0.1);
+  background-color: rgba(255, 255, 255, 0.95);
+  border: 1px solid #d9d9d9;
+  color: black;
+}
+
+dd.module-description ul {
+  padding-left: 0px;
+  list-style-position: inside;
+}    </style>
+
+
+  </head>
+
+  <body>
+    <a href="index.html">go back</a>
+    <h1>The two Germanies
+</h1>
+    <dl>
+      <dt>Updated at</dt>
+      <dd>29. May 2022</dd>
+        <dt>Description</dt>
+        <dd class="module-description">
+              Planning and capitalism - GDP per capita in 1990 international dollars, 1989.
+        </dd>
+        <dt>Data source</dt>
+        <dd>The Conference Board: 'The 2015 Total Economy Database'
+</dd>
+        <dt>Data downloaded from</dt>
+        <dd>
+          <a href="https://ourworldindata.org/grapher/the-two-germanies-planning-and-capitalism">Our World in Data</a>
+        </dd>
+        <dt>Book chapter</dt>
+        <dd><a href="https://core-econ.org/the-economy/book/text/01.html#19-capitalism-causation-and-historys-hockey-stick
+">1.9 Capitalism, causation and history’s hockey stick
+</a></dd>
+    </dl>
+
+
+      <div id="vega-container"></div>
+      <script type="text/javascript">
+function renderTooltip(event, value, config) {
+  const tooltipContainer = document.getElementById("custom-tooltip-element");
+  tooltipContainer.classList.add("visible");
+  if (!value) {
+    tooltipContainer.classList.remove("visible");
+    return;
+  }
+  tooltipContainer.setAttribute(
+    "style",
+    `top: ${event.clientY + 15}px; left: ${event.clientX + 15}px`
+  );
+  const colorScheme = vega.scheme(findScheme(spec));
+  let { datatype, title, ...values } = value;
+  values = Array.from(Object.keys(values), (key, i) => ({
+    key: key,
+    val: values[key],
+    color: colorScheme[i],
+  }));
+  values.sort((a, b) => parseFloat(b.val) - parseFloat(a.val));
+  const fmt = getFormatter(config.formatter[datatype]);
+  tooltipContainer.innerHTML = sortedTable(title, values, fmt).outerHTML;
+}
+
+function getFormatter({ name, digits }) {
+  const currency = (c) =>
+    Intl.NumberFormat("en-US", {
+      maximumSignificantDigits: digits,
+      style: "currency",
+      currency: c,
+    });
+  const unit = (u) =>
+    Intl.NumberFormat("en-US", { maximumSignificantDigits: digits, style: "unit", unit: u });
+  switch (name) {
+    case "hour":
+      return unit("hour");
+    case "USD":
+    default:
+      return currency("USD");
+  }
+}
+
+function svgCircle(color) {
+  return [
+    `<svg style="display: table-cell; height: 1em; width: 1em; fill: ${color};" viewBox="0 0 2 2" xmlns="http://www.w3.org/2000/svg">`,
+    `<circle cx="1.1" cy="1.1" r="0.8"/>`,
+    `</svg>`,
+  ].join("\n");
+}
+
+const element = (tag) => document.createElement(tag);
+
+function findScheme(spec) {
+  for (const layer of spec.hconcat || spec.vconcat || spec.layer) {
+    const scheme =
+      layer &&
+      layer.encoding &&
+      layer.encoding.color &&
+      layer.encoding.color.scale &&
+      layer.encoding.color.scale.scheme;
+    if (scheme) {
+      return scheme;
+    }
+  }
+  return "tableau10";
+}
+
+function sortedTable(title, values, fmt) {
+  const container = element("div");
+  const header = element("h4");
+  header.setAttribute("style", "margin: 0 auto 0.5em;");
+  header.innerText = title;
+  container.appendChild(header);
+  const tbody = element("tbody");
+  for (let row of values) {
+    const tr = element("tr");
+    tr.innerHTML = [
+      `<td>${svgCircle(row.color)}</td>`,
+      `<td>${row.key}</td>`,
+      `<td>${fmt.format(row.val)}</td>`,
+    ].join("\n");
+    tbody.appendChild(tr);
+  }
+  const table = element("table");
+  table.classList.add("tooltip");
+  table.appendChild(tbody);
+  container.appendChild(table);
+  return container;
+}
+
+let vegaView;
+
+function buildChart(spec, options) {
+  vegaEmbed("#vega-container", spec, options)
+    .then((result) => {
+      vegaView = result.view;
+      const meta = spec.usermeta;
+      if (!meta) {
+        return;
+      }
+      if (meta.inputsOnTop) {
+        const bindings = document.querySelector("#vega-container.vega-embed form.vega-bindings");
+        const canvas = document.querySelector("#vega-container.vega-embed canvas");
+        canvas.parentNode.insertBefore(bindings, canvas);
+      }
+      if (meta.customTooltip) {
+        result.view.tooltip((handler, event, item, value) =>
+          renderTooltip(event, value, meta.customTooltip)
+        );
+      }
+      return result.view.runAsync();
+    })
+    .catch(console.error);
+}        const spec = {
+  "$schema": "https://vega.github.io/schema/vega-lite/v4.17.0.json",
+  "config": {
+    "axis": {
+      "labelFont": "Georgia",
+      "labelFontSize": 14,
+      "titleFont": "Georgia",
+      "titleFontSize": 16
+    },
+    "header": {
+      "labelFont": "Georgia",
+      "labelFontSize": 14,
+      "titleFont": "Georgia",
+      "titleFontSize": 16
+    },
+    "legend": {
+      "labelFont": "Georgia",
+      "labelFontSize": 14,
+      "titleFont": "Georgia",
+      "titleFontSize": 16
+    },
+    "title": {
+      "font": "Georgia",
+      "fontSize": 16
+    },
+    "view": {
+      "continuousHeight": 300,
+      "continuousWidth": 400
+    }
+  },
+  "datasets": {
+    "data-2f93328731e1a2c5a7c8ac66624df0b4": [
+      {
+        "Country": "East Germany",
+        "Date": "1950-01-01T00:00:00",
+        "GDP": 2102.0
+      },
+      {
+        "Country": "East Germany",
+        "Date": "1951-01-01T00:00:00",
+        "GDP": 2269.619001
+      },
+      {
+        "Country": "East Germany",
+        "Date": "1952-01-01T00:00:00",
+        "GDP": 2437.238002
+      },
+      {
+        "Country": "East Germany",
+        "Date": "1953-01-01T00:00:00",
+        "GDP": 2604.857002
+      },
+      {
+        "Country": "East Germany",
+        "Date": "1954-01-01T00:00:00",
+        "GDP": 2772.476003
+      },
+      {
+        "Country": "East Germany",
+        "Date": "1955-01-01T00:00:00",
+        "GDP": 2940.095004
+      },
+      {
+        "Country": "East Germany",
+        "Date": "1956-01-01T00:00:00",
+        "GDP": 3137.444603
+      },
+      {
+        "Country": "East Germany",
+        "Date": "1957-01-01T00:00:00",
+        "GDP": 3334.794202
+      },
+      {
+        "Country": "East Germany",
+        "Date": "1958-01-01T00:00:00",
+        "GDP": 3532.143802
+      },
+      {
+        "Country": "East Germany",
+        "Date": "1959-01-01T00:00:00",
+        "GDP": 3729.493401
+      },
+      {
+        "Country": "East Germany",
+        "Date": "1960-01-01T00:00:00",
+        "GDP": 3927.0
+      },
+      {
+        "Country": "East Germany",
+        "Date": "1961-01-01T00:00:00",
+        "GDP": 3982.0
+      },
+      {
+        "Country": "East Germany",
+        "Date": "1962-01-01T00:00:00",
+        "GDP": 4122.0
+      },
+      {
+        "Country": "East Germany",
+        "Date": "1963-01-01T00:00:00",
+        "GDP": 4241.0
+      },
+      {
+        "Country": "East Germany",
+        "Date": "1964-01-01T00:00:00",
+        "GDP": 4347.0
+      },
+      {
+        "Country": "East Germany",
+        "Date": "1965-01-01T00:00:00",
+        "GDP": 4509.0
+      },
+      {
+        "Country": "East Germany",
+        "Date": "1966-01-01T00:00:00",
+        "GDP": 4637.0
+      },
+      {
+        "Country": "East Germany",
+        "Date": "1967-01-01T00:00:00",
+        "GDP": 4780.0
+      },
+      {
+        "Country": "East Germany",
+        "Date": "1968-01-01T00:00:00",
+        "GDP": 4997.0
+      },
+      {
+        "Country": "East Germany",
+        "Date": "1969-01-01T00:00:00",
+        "GDP": 5117.0
+      },
+      {
+        "Country": "East Germany",
+        "Date": "1970-01-01T00:00:00",
+        "GDP": 5254.0
+      },
+      {
+        "Country": "East Germany",
+        "Date": "1971-01-01T00:00:00",
+        "GDP": 5371.0
+      },
+      {
+        "Country": "East Germany",
+        "Date": "1972-01-01T00:00:00",
+        "GDP": 5558.0
+      },
+      {
+        "Country": "East Germany",
+        "Date": "1973-01-01T00:00:00",
+        "GDP": 5753.0
+      },
+      {
+        "Country": "East Germany",
+        "Date": "1974-01-01T00:00:00",
+        "GDP": 6048.0
+      },
+      {
+        "Country": "East Germany",
+        "Date": "1975-01-01T00:00:00",
+        "GDP": 6300.0
+      },
+      {
+        "Country": "East Germany",
+        "Date": "1976-01-01T00:00:00",
+        "GDP": 6451.0
+      },
+      {
+        "Country": "East Germany",
+        "Date": "1977-01-01T00:00:00",
+        "GDP": 6657.0
+      },
+      {
+        "Country": "East Germany",
+        "Date": "1978-01-01T00:00:00",
+        "GDP": 6774.0
+      },
+      {
+        "Country": "East Germany",
+        "Date": "1979-01-01T00:00:00",
+        "GDP": 6967.0
+      },
+      {
+        "Country": "East Germany",
+        "Date": "1980-01-01T00:00:00",
+        "GDP": 7118.0
+      },
+      {
+        "Country": "East Germany",
+        "Date": "1981-01-01T00:00:00",
+        "GDP": 7264.0
+      },
+      {
+        "Country": "East Germany",
+        "Date": "1982-01-01T00:00:00",
+        "GDP": 7241.0
+      },
+      {
+        "Country": "East Germany",
+        "Date": "1983-01-01T00:00:00",
+        "GDP": 7393.0
+      },
+      {
+        "Country": "East Germany",
+        "Date": "1984-01-01T00:00:00",
+        "GDP": 7617.0
+      },
+      {
+        "Country": "East Germany",
+        "Date": "1985-01-01T00:00:00",
+        "GDP": 7866.0
+      },
+      {
+        "Country": "East Germany",
+        "Date": "1986-01-01T00:00:00",
+        "GDP": 7989.0
+      },
+      {
+        "Country": "East Germany",
+        "Date": "1987-01-01T00:00:00",
+        "GDP": 8116.0
+      },
+      {
+        "Country": "East Germany",
+        "Date": "1988-01-01T00:00:00",
+        "GDP": 8192.0
+      },
+      {
+        "Country": "East Germany",
+        "Date": "1989-01-01T00:00:00",
+        "GDP": 8422.0
+      },
+      {
+        "Country": "Greece",
+        "Date": "1950-01-01T00:00:00",
+        "GDP": 1915.0
+      },
+      {
+        "Country": "Greece",
+        "Date": "1951-01-01T00:00:00",
+        "GDP": 2062.0
+      },
+      {
+        "Country": "Greece",
+        "Date": "1952-01-01T00:00:00",
+        "GDP": 2053.0
+      },
+      {
+        "Country": "Greece",
+        "Date": "1953-01-01T00:00:00",
+        "GDP": 2309.0
+      },
+      {
+        "Country": "Greece",
+        "Date": "1954-01-01T00:00:00",
+        "GDP": 2358.0
+      },
+      {
+        "Country": "Greece",
+        "Date": "1955-01-01T00:00:00",
+        "GDP": 2514.0
+      },
+      {
+        "Country": "Greece",
+        "Date": "1956-01-01T00:00:00",
+        "GDP": 2706.0
+      },
+      {
+        "Country": "Greece",
+        "Date": "1957-01-01T00:00:00",
+        "GDP": 2859.0
+      },
+      {
+        "Country": "Greece",
+        "Date": "1958-01-01T00:00:00",
+        "GDP": 2963.0
+      },
+      {
+        "Country": "Greece",
+        "Date": "1959-01-01T00:00:00",
+        "GDP": 3040.0
+      },
+      {
+        "Country": "Greece",
+        "Date": "1960-01-01T00:00:00",
+        "GDP": 3146.0
+      },
+      {
+        "Country": "Greece",
+        "Date": "1961-01-01T00:00:00",
+        "GDP": 3393.0
+      },
+      {
+        "Country": "Greece",
+        "Date": "1962-01-01T00:00:00",
+        "GDP": 3499.0
+      },
+      {
+        "Country": "Greece",
+        "Date": "1963-01-01T00:00:00",
+        "GDP": 3841.0
+      },
+      {
+        "Country": "Greece",
+        "Date": "1964-01-01T00:00:00",
+        "GDP": 4141.0
+      },
+      {
+        "Country": "Greece",
+        "Date": "1965-01-01T00:00:00",
+        "GDP": 4509.0
+      },
+      {
+        "Country": "Greece",
+        "Date": "1966-01-01T00:00:00",
+        "GDP": 4749.0
+      },
+      {
+        "Country": "Greece",
+        "Date": "1967-01-01T00:00:00",
+        "GDP": 4951.0
+      },
+      {
+        "Country": "Greece",
+        "Date": "1968-01-01T00:00:00",
+        "GDP": 5266.0
+      },
+      {
+        "Country": "Greece",
+        "Date": "1969-01-01T00:00:00",
+        "GDP": 5766.0
+      },
+      {
+        "Country": "Greece",
+        "Date": "1970-01-01T00:00:00",
+        "GDP": 6211.0
+      },
+      {
+        "Country": "Greece",
+        "Date": "1971-01-01T00:00:00",
+        "GDP": 6624.0
+      },
+      {
+        "Country": "Greece",
+        "Date": "1972-01-01T00:00:00",
+        "GDP": 7400.0
+      },
+      {
+        "Country": "Greece",
+        "Date": "1973-01-01T00:00:00",
+        "GDP": 7655.0
+      },
+      {
+        "Country": "Greece",
+        "Date": "1974-01-01T00:00:00",
+        "GDP": 7350.0
+      },
+      {
+        "Country": "Greece",
+        "Date": "1975-01-01T00:00:00",
+        "GDP": 7722.0
+      },
+      {
+        "Country": "Greece",
+        "Date": "1976-01-01T00:00:00",
+        "GDP": 8105.0
+      },
+      {
+        "Country": "Greece",
+        "Date": "1977-01-01T00:00:00",
+        "GDP": 8255.0
+      },
+      {
+        "Country": "Greece",
+        "Date": "1978-01-01T00:00:00",
+        "GDP": 8695.0
+      },
+      {
+        "Country": "Greece",
+        "Date": "1979-01-01T00:00:00",
+        "GDP": 8904.0
+      },
+      {
+        "Country": "Greece",
+        "Date": "1980-01-01T00:00:00",
+        "GDP": 8971.0
+      },
+      {
+        "Country": "Greece",
+        "Date": "1981-01-01T00:00:00",
+        "GDP": 8896.0
+      },
+      {
+        "Country": "Greece",
+        "Date": "1982-01-01T00:00:00",
+        "GDP": 8879.0
+      },
+      {
+        "Country": "Greece",
+        "Date": "1983-01-01T00:00:00",
+        "GDP": 8866.0
+      },
+      {
+        "Country": "Greece",
+        "Date": "1984-01-01T00:00:00",
+        "GDP": 9067.0
+      },
+      {
+        "Country": "Greece",
+        "Date": "1985-01-01T00:00:00",
+        "GDP": 9316.0
+      },
+      {
+        "Country": "Greece",
+        "Date": "1986-01-01T00:00:00",
+        "GDP": 9440.0
+      },
+      {
+        "Country": "Greece",
+        "Date": "1987-01-01T00:00:00",
+        "GDP": 9375.0
+      },
+      {
+        "Country": "Greece",
+        "Date": "1988-01-01T00:00:00",
+        "GDP": 9784.0
+      },
+      {
+        "Country": "Greece",
+        "Date": "1989-01-01T00:00:00",
+        "GDP": 10111.0
+      },
+      {
+        "Country": "Italy",
+        "Date": "1950-01-01T00:00:00",
+        "GDP": 3502.0
+      },
+      {
+        "Country": "Italy",
+        "Date": "1951-01-01T00:00:00",
+        "GDP": 3738.0
+      },
+      {
+        "Country": "Italy",
+        "Date": "1952-01-01T00:00:00",
+        "GDP": 3997.0
+      },
+      {
+        "Country": "Italy",
+        "Date": "1953-01-01T00:00:00",
+        "GDP": 4260.0
+      },
+      {
+        "Country": "Italy",
+        "Date": "1954-01-01T00:00:00",
+        "GDP": 4449.0
+      },
+      {
+        "Country": "Italy",
+        "Date": "1955-01-01T00:00:00",
+        "GDP": 4676.0
+      },
+      {
+        "Country": "Italy",
+        "Date": "1956-01-01T00:00:00",
+        "GDP": 4859.0
+      },
+      {
+        "Country": "Italy",
+        "Date": "1957-01-01T00:00:00",
+        "GDP": 5118.0
+      },
+      {
+        "Country": "Italy",
+        "Date": "1958-01-01T00:00:00",
+        "GDP": 5360.0
+      },
+      {
+        "Country": "Italy",
+        "Date": "1959-01-01T00:00:00",
+        "GDP": 5653.0
+      },
+      {
+        "Country": "Italy",
+        "Date": "1960-01-01T00:00:00",
+        "GDP": 5916.0
+      },
+      {
+        "Country": "Italy",
+        "Date": "1961-01-01T00:00:00",
+        "GDP": 6373.0
+      },
+      {
+        "Country": "Italy",
+        "Date": "1962-01-01T00:00:00",
+        "GDP": 6827.0
+      },
+      {
+        "Country": "Italy",
+        "Date": "1963-01-01T00:00:00",
+        "GDP": 7262.0
+      },
+      {
+        "Country": "Italy",
+        "Date": "1964-01-01T00:00:00",
+        "GDP": 7487.0
+      },
+      {
+        "Country": "Italy",
+        "Date": "1965-01-01T00:00:00",
+        "GDP": 7598.0
+      },
+      {
+        "Country": "Italy",
+        "Date": "1966-01-01T00:00:00",
+        "GDP": 7942.0
+      },
+      {
+        "Country": "Italy",
+        "Date": "1967-01-01T00:00:00",
+        "GDP": 8454.0
+      },
+      {
+        "Country": "Italy",
+        "Date": "1968-01-01T00:00:00",
+        "GDP": 9105.0
+      },
+      {
+        "Country": "Italy",
+        "Date": "1969-01-01T00:00:00",
+        "GDP": 9566.0
+      },
+      {
+        "Country": "Italy",
+        "Date": "1970-01-01T00:00:00",
+        "GDP": 9719.0
+      },
+      {
+        "Country": "Italy",
+        "Date": "1971-01-01T00:00:00",
+        "GDP": 9839.0
+      },
+      {
+        "Country": "Italy",
+        "Date": "1972-01-01T00:00:00",
+        "GDP": 10060.0
+      },
+      {
+        "Country": "Italy",
+        "Date": "1973-01-01T00:00:00",
+        "GDP": 10634.0
+      },
+      {
+        "Country": "Italy",
+        "Date": "1974-01-01T00:00:00",
+        "GDP": 11046.0
+      },
+      {
+        "Country": "Italy",
+        "Date": "1975-01-01T00:00:00",
+        "GDP": 10742.0
+      },
+      {
+        "Country": "Italy",
+        "Date": "1976-01-01T00:00:00",
+        "GDP": 11385.0
+      },
+      {
+        "Country": "Italy",
+        "Date": "1977-01-01T00:00:00",
+        "GDP": 11668.0
+      },
+      {
+        "Country": "Italy",
+        "Date": "1978-01-01T00:00:00",
+        "GDP": 12064.0
+      },
+      {
+        "Country": "Italy",
+        "Date": "1979-01-01T00:00:00",
+        "GDP": 12720.0
+      },
+      {
+        "Country": "Italy",
+        "Date": "1980-01-01T00:00:00",
+        "GDP": 13149.0
+      },
+      {
+        "Country": "Italy",
+        "Date": "1981-01-01T00:00:00",
+        "GDP": 13200.0
+      },
+      {
+        "Country": "Italy",
+        "Date": "1982-01-01T00:00:00",
+        "GDP": 13252.0
+      },
+      {
+        "Country": "Italy",
+        "Date": "1983-01-01T00:00:00",
+        "GDP": 13391.0
+      },
+      {
+        "Country": "Italy",
+        "Date": "1984-01-01T00:00:00",
+        "GDP": 13719.0
+      },
+      {
+        "Country": "Italy",
+        "Date": "1985-01-01T00:00:00",
+        "GDP": 14096.0
+      },
+      {
+        "Country": "Italy",
+        "Date": "1986-01-01T00:00:00",
+        "GDP": 14496.0
+      },
+      {
+        "Country": "Italy",
+        "Date": "1987-01-01T00:00:00",
+        "GDP": 14946.0
+      },
+      {
+        "Country": "Italy",
+        "Date": "1988-01-01T00:00:00",
+        "GDP": 15523.0
+      },
+      {
+        "Country": "Italy",
+        "Date": "1989-01-01T00:00:00",
+        "GDP": 15969.0
+      },
+      {
+        "Country": "Japan",
+        "Date": "1950-01-01T00:00:00",
+        "GDP": 1921.0
+      },
+      {
+        "Country": "Japan",
+        "Date": "1951-01-01T00:00:00",
+        "GDP": 2126.0
+      },
+      {
+        "Country": "Japan",
+        "Date": "1952-01-01T00:00:00",
+        "GDP": 2336.0
+      },
+      {
+        "Country": "Japan",
+        "Date": "1953-01-01T00:00:00",
+        "GDP": 2474.0
+      },
+      {
+        "Country": "Japan",
+        "Date": "1954-01-01T00:00:00",
+        "GDP": 2582.0
+      },
+      {
+        "Country": "Japan",
+        "Date": "1955-01-01T00:00:00",
+        "GDP": 2771.0
+      },
+      {
+        "Country": "Japan",
+        "Date": "1956-01-01T00:00:00",
+        "GDP": 2948.0
+      },
+      {
+        "Country": "Japan",
+        "Date": "1957-01-01T00:00:00",
+        "GDP": 3136.0
+      },
+      {
+        "Country": "Japan",
+        "Date": "1958-01-01T00:00:00",
+        "GDP": 3289.0
+      },
+      {
+        "Country": "Japan",
+        "Date": "1959-01-01T00:00:00",
+        "GDP": 3554.0
+      },
+      {
+        "Country": "Japan",
+        "Date": "1960-01-01T00:00:00",
+        "GDP": 3986.0
+      },
+      {
+        "Country": "Japan",
+        "Date": "1961-01-01T00:00:00",
+        "GDP": 4426.0
+      },
+      {
+        "Country": "Japan",
+        "Date": "1962-01-01T00:00:00",
+        "GDP": 4777.0
+      },
+      {
+        "Country": "Japan",
+        "Date": "1963-01-01T00:00:00",
+        "GDP": 5129.0
+      },
+      {
+        "Country": "Japan",
+        "Date": "1964-01-01T00:00:00",
+        "GDP": 5668.0
+      },
+      {
+        "Country": "Japan",
+        "Date": "1965-01-01T00:00:00",
+        "GDP": 5934.0
+      },
+      {
+        "Country": "Japan",
+        "Date": "1966-01-01T00:00:00",
+        "GDP": 6506.0
+      },
+      {
+        "Country": "Japan",
+        "Date": "1967-01-01T00:00:00",
+        "GDP": 7152.0
+      },
+      {
+        "Country": "Japan",
+        "Date": "1968-01-01T00:00:00",
+        "GDP": 7983.0
+      },
+      {
+        "Country": "Japan",
+        "Date": "1969-01-01T00:00:00",
+        "GDP": 8874.0
+      },
+      {
+        "Country": "Japan",
+        "Date": "1970-01-01T00:00:00",
+        "GDP": 9714.0
+      },
+      {
+        "Country": "Japan",
+        "Date": "1971-01-01T00:00:00",
+        "GDP": 10040.0
+      },
+      {
+        "Country": "Japan",
+        "Date": "1972-01-01T00:00:00",
+        "GDP": 10734.0
+      },
+      {
+        "Country": "Japan",
+        "Date": "1973-01-01T00:00:00",
+        "GDP": 11434.0
+      },
+      {
+        "Country": "Japan",
+        "Date": "1974-01-01T00:00:00",
+        "GDP": 11145.0
+      },
+      {
+        "Country": "Japan",
+        "Date": "1975-01-01T00:00:00",
+        "GDP": 11344.0
+      },
+      {
+        "Country": "Japan",
+        "Date": "1976-01-01T00:00:00",
+        "GDP": 11669.0
+      },
+      {
+        "Country": "Japan",
+        "Date": "1977-01-01T00:00:00",
+        "GDP": 12064.0
+      },
+      {
+        "Country": "Japan",
+        "Date": "1978-01-01T00:00:00",
+        "GDP": 12585.0
+      },
+      {
+        "Country": "Japan",
+        "Date": "1979-01-01T00:00:00",
+        "GDP": 13163.0
+      },
+      {
+        "Country": "Japan",
+        "Date": "1980-01-01T00:00:00",
+        "GDP": 13428.0
+      },
+      {
+        "Country": "Japan",
+        "Date": "1981-01-01T00:00:00",
+        "GDP": 13754.0
+      },
+      {
+        "Country": "Japan",
+        "Date": "1982-01-01T00:00:00",
+        "GDP": 14078.0
+      },
+      {
+        "Country": "Japan",
+        "Date": "1983-01-01T00:00:00",
+        "GDP": 14307.0
+      },
+      {
+        "Country": "Japan",
+        "Date": "1984-01-01T00:00:00",
+        "GDP": 14773.0
+      },
+      {
+        "Country": "Japan",
+        "Date": "1985-01-01T00:00:00",
+        "GDP": 15331.0
+      },
+      {
+        "Country": "Japan",
+        "Date": "1986-01-01T00:00:00",
+        "GDP": 15679.0
+      },
+      {
+        "Country": "Japan",
+        "Date": "1987-01-01T00:00:00",
+        "GDP": 16251.0
+      },
+      {
+        "Country": "Japan",
+        "Date": "1988-01-01T00:00:00",
+        "GDP": 17185.0
+      },
+      {
+        "Country": "Japan",
+        "Date": "1989-01-01T00:00:00",
+        "GDP": 17943.0
+      },
+      {
+        "Country": "Portugal",
+        "Date": "1950-01-01T00:00:00",
+        "GDP": 2086.0
+      },
+      {
+        "Country": "Portugal",
+        "Date": "1951-01-01T00:00:00",
+        "GDP": 2168.0
+      },
+      {
+        "Country": "Portugal",
+        "Date": "1952-01-01T00:00:00",
+        "GDP": 2161.0
+      },
+      {
+        "Country": "Portugal",
+        "Date": "1953-01-01T00:00:00",
+        "GDP": 2298.0
+      },
+      {
+        "Country": "Portugal",
+        "Date": "1954-01-01T00:00:00",
+        "GDP": 2393.0
+      },
+      {
+        "Country": "Portugal",
+        "Date": "1955-01-01T00:00:00",
+        "GDP": 2475.0
+      },
+      {
+        "Country": "Portugal",
+        "Date": "1956-01-01T00:00:00",
+        "GDP": 2564.0
+      },
+      {
+        "Country": "Portugal",
+        "Date": "1957-01-01T00:00:00",
+        "GDP": 2659.0
+      },
+      {
+        "Country": "Portugal",
+        "Date": "1958-01-01T00:00:00",
+        "GDP": 2672.0
+      },
+      {
+        "Country": "Portugal",
+        "Date": "1959-01-01T00:00:00",
+        "GDP": 2794.0
+      },
+      {
+        "Country": "Portugal",
+        "Date": "1960-01-01T00:00:00",
+        "GDP": 2956.0
+      },
+      {
+        "Country": "Portugal",
+        "Date": "1961-01-01T00:00:00",
+        "GDP": 3119.0
+      },
+      {
+        "Country": "Portugal",
+        "Date": "1962-01-01T00:00:00",
+        "GDP": 3330.0
+      },
+      {
+        "Country": "Portugal",
+        "Date": "1963-01-01T00:00:00",
+        "GDP": 3504.0
+      },
+      {
+        "Country": "Portugal",
+        "Date": "1964-01-01T00:00:00",
+        "GDP": 3718.0
+      },
+      {
+        "Country": "Portugal",
+        "Date": "1965-01-01T00:00:00",
+        "GDP": 3992.0
+      },
+      {
+        "Country": "Portugal",
+        "Date": "1966-01-01T00:00:00",
+        "GDP": 4164.0
+      },
+      {
+        "Country": "Portugal",
+        "Date": "1967-01-01T00:00:00",
+        "GDP": 4481.0
+      },
+      {
+        "Country": "Portugal",
+        "Date": "1968-01-01T00:00:00",
+        "GDP": 4873.0
+      },
+      {
+        "Country": "Portugal",
+        "Date": "1969-01-01T00:00:00",
+        "GDP": 4987.0
+      },
+      {
+        "Country": "Portugal",
+        "Date": "1970-01-01T00:00:00",
+        "GDP": 5473.0
+      },
+      {
+        "Country": "Portugal",
+        "Date": "1971-01-01T00:00:00",
+        "GDP": 5871.0
+      },
+      {
+        "Country": "Portugal",
+        "Date": "1972-01-01T00:00:00",
+        "GDP": 6355.0
+      },
+      {
+        "Country": "Portugal",
+        "Date": "1973-01-01T00:00:00",
+        "GDP": 7063.0
+      },
+      {
+        "Country": "Portugal",
+        "Date": "1974-01-01T00:00:00",
+        "GDP": 7048.0
+      },
+      {
+        "Country": "Portugal",
+        "Date": "1975-01-01T00:00:00",
+        "GDP": 6517.0
+      },
+      {
+        "Country": "Portugal",
+        "Date": "1976-01-01T00:00:00",
+        "GDP": 6814.0
+      },
+      {
+        "Country": "Portugal",
+        "Date": "1977-01-01T00:00:00",
+        "GDP": 7166.0
+      },
+      {
+        "Country": "Portugal",
+        "Date": "1978-01-01T00:00:00",
+        "GDP": 7340.0
+      },
+      {
+        "Country": "Portugal",
+        "Date": "1979-01-01T00:00:00",
+        "GDP": 7733.0
+      },
+      {
+        "Country": "Portugal",
+        "Date": "1980-01-01T00:00:00",
+        "GDP": 8044.0
+      },
+      {
+        "Country": "Portugal",
+        "Date": "1981-01-01T00:00:00",
+        "GDP": 8114.0
+      },
+      {
+        "Country": "Portugal",
+        "Date": "1982-01-01T00:00:00",
+        "GDP": 8280.0
+      },
+      {
+        "Country": "Portugal",
+        "Date": "1983-01-01T00:00:00",
+        "GDP": 8255.0
+      },
+      {
+        "Country": "Portugal",
+        "Date": "1984-01-01T00:00:00",
+        "GDP": 8089.0
+      },
+      {
+        "Country": "Portugal",
+        "Date": "1985-01-01T00:00:00",
+        "GDP": 8306.0
+      },
+      {
+        "Country": "Portugal",
+        "Date": "1986-01-01T00:00:00",
+        "GDP": 8641.0
+      },
+      {
+        "Country": "Portugal",
+        "Date": "1987-01-01T00:00:00",
+        "GDP": 9185.0
+      },
+      {
+        "Country": "Portugal",
+        "Date": "1988-01-01T00:00:00",
+        "GDP": 9868.0
+      },
+      {
+        "Country": "Portugal",
+        "Date": "1989-01-01T00:00:00",
+        "GDP": 10372.0
+      },
+      {
+        "Country": "Spain",
+        "Date": "1950-01-01T00:00:00",
+        "GDP": 2189.0
+      },
+      {
+        "Country": "Spain",
+        "Date": "1951-01-01T00:00:00",
+        "GDP": 2386.0
+      },
+      {
+        "Country": "Spain",
+        "Date": "1952-01-01T00:00:00",
+        "GDP": 2558.0
+      },
+      {
+        "Country": "Spain",
+        "Date": "1953-01-01T00:00:00",
+        "GDP": 2528.0
+      },
+      {
+        "Country": "Spain",
+        "Date": "1954-01-01T00:00:00",
+        "GDP": 2696.0
+      },
+      {
+        "Country": "Spain",
+        "Date": "1955-01-01T00:00:00",
+        "GDP": 2778.0
+      },
+      {
+        "Country": "Spain",
+        "Date": "1956-01-01T00:00:00",
+        "GDP": 2978.0
+      },
+      {
+        "Country": "Spain",
+        "Date": "1957-01-01T00:00:00",
+        "GDP": 3046.0
+      },
+      {
+        "Country": "Spain",
+        "Date": "1958-01-01T00:00:00",
+        "GDP": 3150.0
+      },
+      {
+        "Country": "Spain",
+        "Date": "1959-01-01T00:00:00",
+        "GDP": 3050.0
+      },
+      {
+        "Country": "Spain",
+        "Date": "1960-01-01T00:00:00",
+        "GDP": 3072.0
+      },
+      {
+        "Country": "Spain",
+        "Date": "1961-01-01T00:00:00",
+        "GDP": 3436.0
+      },
+      {
+        "Country": "Spain",
+        "Date": "1962-01-01T00:00:00",
+        "GDP": 3800.0
+      },
+      {
+        "Country": "Spain",
+        "Date": "1963-01-01T00:00:00",
+        "GDP": 4151.0
+      },
+      {
+        "Country": "Spain",
+        "Date": "1964-01-01T00:00:00",
+        "GDP": 4515.0
+      },
+      {
+        "Country": "Spain",
+        "Date": "1965-01-01T00:00:00",
+        "GDP": 4762.0
+      },
+      {
+        "Country": "Spain",
+        "Date": "1966-01-01T00:00:00",
+        "GDP": 5060.0
+      },
+      {
+        "Country": "Spain",
+        "Date": "1967-01-01T00:00:00",
+        "GDP": 5334.0
+      },
+      {
+        "Country": "Spain",
+        "Date": "1968-01-01T00:00:00",
+        "GDP": 5588.0
+      },
+      {
+        "Country": "Spain",
+        "Date": "1969-01-01T00:00:00",
+        "GDP": 6032.0
+      },
+      {
+        "Country": "Spain",
+        "Date": "1970-01-01T00:00:00",
+        "GDP": 6319.0
+      },
+      {
+        "Country": "Spain",
+        "Date": "1971-01-01T00:00:00",
+        "GDP": 6618.0
+      },
+      {
+        "Country": "Spain",
+        "Date": "1972-01-01T00:00:00",
+        "GDP": 7099.0
+      },
+      {
+        "Country": "Spain",
+        "Date": "1973-01-01T00:00:00",
+        "GDP": 7661.0
+      },
+      {
+        "Country": "Spain",
+        "Date": "1974-01-01T00:00:00",
+        "GDP": 8149.0
+      },
+      {
+        "Country": "Spain",
+        "Date": "1975-01-01T00:00:00",
+        "GDP": 8346.0
+      },
+      {
+        "Country": "Spain",
+        "Date": "1976-01-01T00:00:00",
+        "GDP": 8599.0
+      },
+      {
+        "Country": "Spain",
+        "Date": "1977-01-01T00:00:00",
+        "GDP": 8833.0
+      },
+      {
+        "Country": "Spain",
+        "Date": "1978-01-01T00:00:00",
+        "GDP": 9023.0
+      },
+      {
+        "Country": "Spain",
+        "Date": "1979-01-01T00:00:00",
+        "GDP": 9068.0
+      },
+      {
+        "Country": "Spain",
+        "Date": "1980-01-01T00:00:00",
+        "GDP": 9203.0
+      },
+      {
+        "Country": "Spain",
+        "Date": "1981-01-01T00:00:00",
+        "GDP": 9186.0
+      },
+      {
+        "Country": "Spain",
+        "Date": "1982-01-01T00:00:00",
+        "GDP": 9293.0
+      },
+      {
+        "Country": "Spain",
+        "Date": "1983-01-01T00:00:00",
+        "GDP": 9478.0
+      },
+      {
+        "Country": "Spain",
+        "Date": "1984-01-01T00:00:00",
+        "GDP": 9571.0
+      },
+      {
+        "Country": "Spain",
+        "Date": "1985-01-01T00:00:00",
+        "GDP": 9722.0
+      },
+      {
+        "Country": "Spain",
+        "Date": "1986-01-01T00:00:00",
+        "GDP": 9998.0
+      },
+      {
+        "Country": "Spain",
+        "Date": "1987-01-01T00:00:00",
+        "GDP": 10520.0
+      },
+      {
+        "Country": "Spain",
+        "Date": "1988-01-01T00:00:00",
+        "GDP": 11046.0
+      },
+      {
+        "Country": "Spain",
+        "Date": "1989-01-01T00:00:00",
+        "GDP": 11582.0
+      },
+      {
+        "Country": "West Germany",
+        "Date": "1950-01-01T00:00:00",
+        "GDP": 4281.0
+      },
+      {
+        "Country": "West Germany",
+        "Date": "1951-01-01T00:00:00",
+        "GDP": 4651.0
+      },
+      {
+        "Country": "West Germany",
+        "Date": "1952-01-01T00:00:00",
+        "GDP": 5046.0
+      },
+      {
+        "Country": "West Germany",
+        "Date": "1953-01-01T00:00:00",
+        "GDP": 5439.0
+      },
+      {
+        "Country": "West Germany",
+        "Date": "1954-01-01T00:00:00",
+        "GDP": 5797.0
+      },
+      {
+        "Country": "West Germany",
+        "Date": "1955-01-01T00:00:00",
+        "GDP": 6431.0
+      },
+      {
+        "Country": "West Germany",
+        "Date": "1956-01-01T00:00:00",
+        "GDP": 6839.0
+      },
+      {
+        "Country": "West Germany",
+        "Date": "1957-01-01T00:00:00",
+        "GDP": 7154.0
+      },
+      {
+        "Country": "West Germany",
+        "Date": "1958-01-01T00:00:00",
+        "GDP": 7378.0
+      },
+      {
+        "Country": "West Germany",
+        "Date": "1959-01-01T00:00:00",
+        "GDP": 7868.0
+      },
+      {
+        "Country": "West Germany",
+        "Date": "1960-01-01T00:00:00",
+        "GDP": 8464.0
+      },
+      {
+        "Country": "West Germany",
+        "Date": "1961-01-01T00:00:00",
+        "GDP": 8729.0
+      },
+      {
+        "Country": "West Germany",
+        "Date": "1962-01-01T00:00:00",
+        "GDP": 9023.0
+      },
+      {
+        "Country": "West Germany",
+        "Date": "1963-01-01T00:00:00",
+        "GDP": 9184.0
+      },
+      {
+        "Country": "West Germany",
+        "Date": "1964-01-01T00:00:00",
+        "GDP": 9697.0
+      },
+      {
+        "Country": "West Germany",
+        "Date": "1965-01-01T00:00:00",
+        "GDP": 10105.0
+      },
+      {
+        "Country": "West Germany",
+        "Date": "1966-01-01T00:00:00",
+        "GDP": 10299.0
+      },
+      {
+        "Country": "West Germany",
+        "Date": "1967-01-01T00:00:00",
+        "GDP": 10243.0
+      },
+      {
+        "Country": "West Germany",
+        "Date": "1968-01-01T00:00:00",
+        "GDP": 10772.0
+      },
+      {
+        "Country": "West Germany",
+        "Date": "1969-01-01T00:00:00",
+        "GDP": 11465.0
+      },
+      {
+        "Country": "West Germany",
+        "Date": "1970-01-01T00:00:00",
+        "GDP": 11934.0
+      },
+      {
+        "Country": "West Germany",
+        "Date": "1971-01-01T00:00:00",
+        "GDP": 12162.0
+      },
+      {
+        "Country": "West Germany",
+        "Date": "1972-01-01T00:00:00",
+        "GDP": 12604.0
+      },
+      {
+        "Country": "West Germany",
+        "Date": "1973-01-01T00:00:00",
+        "GDP": 13153.0
+      },
+      {
+        "Country": "West Germany",
+        "Date": "1974-01-01T00:00:00",
+        "GDP": 13172.0
+      },
+      {
+        "Country": "West Germany",
+        "Date": "1975-01-01T00:00:00",
+        "GDP": 13034.0
+      },
+      {
+        "Country": "West Germany",
+        "Date": "1976-01-01T00:00:00",
+        "GDP": 13798.0
+      },
+      {
+        "Country": "West Germany",
+        "Date": "1977-01-01T00:00:00",
+        "GDP": 14219.0
+      },
+      {
+        "Country": "West Germany",
+        "Date": "1978-01-01T00:00:00",
+        "GDP": 14664.0
+      },
+      {
+        "Country": "West Germany",
+        "Date": "1979-01-01T00:00:00",
+        "GDP": 15257.0
+      },
+      {
+        "Country": "West Germany",
+        "Date": "1980-01-01T00:00:00",
+        "GDP": 15371.0
+      },
+      {
+        "Country": "West Germany",
+        "Date": "1981-01-01T00:00:00",
+        "GDP": 15356.0
+      },
+      {
+        "Country": "West Germany",
+        "Date": "1982-01-01T00:00:00",
+        "GDP": 15224.0
+      },
+      {
+        "Country": "West Germany",
+        "Date": "1983-01-01T00:00:00",
+        "GDP": 15546.0
+      },
+      {
+        "Country": "West Germany",
+        "Date": "1984-01-01T00:00:00",
+        "GDP": 16048.0
+      },
+      {
+        "Country": "West Germany",
+        "Date": "1985-01-01T00:00:00",
+        "GDP": 16413.0
+      },
+      {
+        "Country": "West Germany",
+        "Date": "1986-01-01T00:00:00",
+        "GDP": 16787.0
+      },
+      {
+        "Country": "West Germany",
+        "Date": "1987-01-01T00:00:00",
+        "GDP": 17033.0
+      },
+      {
+        "Country": "West Germany",
+        "Date": "1988-01-01T00:00:00",
+        "GDP": 17560.0
+      },
+      {
+        "Country": "West Germany",
+        "Date": "1989-01-01T00:00:00",
+        "GDP": 18016.0
+      }
+    ],
+    "data-394921ef2db1c6d115b6da0577e00453": [
+      {
+        "Date": "1950-01-01T00:00:00",
+        "East Germany": 2102.0,
+        "Greece": 1915.0,
+        "Italy": 3502.0,
+        "Japan": 1921.0,
+        "Portugal": 2086.0,
+        "Spain": 2189.0,
+        "West Germany": 4281.0,
+        "datatype": "gdp"
+      },
+      {
+        "Date": "1951-01-01T00:00:00",
+        "East Germany": 2269.619001,
+        "Greece": 2062.0,
+        "Italy": 3738.0,
+        "Japan": 2126.0,
+        "Portugal": 2168.0,
+        "Spain": 2386.0,
+        "West Germany": 4651.0,
+        "datatype": "gdp"
+      },
+      {
+        "Date": "1952-01-01T00:00:00",
+        "East Germany": 2437.238002,
+        "Greece": 2053.0,
+        "Italy": 3997.0,
+        "Japan": 2336.0,
+        "Portugal": 2161.0,
+        "Spain": 2558.0,
+        "West Germany": 5046.0,
+        "datatype": "gdp"
+      },
+      {
+        "Date": "1953-01-01T00:00:00",
+        "East Germany": 2604.857002,
+        "Greece": 2309.0,
+        "Italy": 4260.0,
+        "Japan": 2474.0,
+        "Portugal": 2298.0,
+        "Spain": 2528.0,
+        "West Germany": 5439.0,
+        "datatype": "gdp"
+      },
+      {
+        "Date": "1954-01-01T00:00:00",
+        "East Germany": 2772.476003,
+        "Greece": 2358.0,
+        "Italy": 4449.0,
+        "Japan": 2582.0,
+        "Portugal": 2393.0,
+        "Spain": 2696.0,
+        "West Germany": 5797.0,
+        "datatype": "gdp"
+      },
+      {
+        "Date": "1955-01-01T00:00:00",
+        "East Germany": 2940.095004,
+        "Greece": 2514.0,
+        "Italy": 4676.0,
+        "Japan": 2771.0,
+        "Portugal": 2475.0,
+        "Spain": 2778.0,
+        "West Germany": 6431.0,
+        "datatype": "gdp"
+      },
+      {
+        "Date": "1956-01-01T00:00:00",
+        "East Germany": 3137.444603,
+        "Greece": 2706.0,
+        "Italy": 4859.0,
+        "Japan": 2948.0,
+        "Portugal": 2564.0,
+        "Spain": 2978.0,
+        "West Germany": 6839.0,
+        "datatype": "gdp"
+      },
+      {
+        "Date": "1957-01-01T00:00:00",
+        "East Germany": 3334.794202,
+        "Greece": 2859.0,
+        "Italy": 5118.0,
+        "Japan": 3136.0,
+        "Portugal": 2659.0,
+        "Spain": 3046.0,
+        "West Germany": 7154.0,
+        "datatype": "gdp"
+      },
+      {
+        "Date": "1958-01-01T00:00:00",
+        "East Germany": 3532.143802,
+        "Greece": 2963.0,
+        "Italy": 5360.0,
+        "Japan": 3289.0,
+        "Portugal": 2672.0,
+        "Spain": 3150.0,
+        "West Germany": 7378.0,
+        "datatype": "gdp"
+      },
+      {
+        "Date": "1959-01-01T00:00:00",
+        "East Germany": 3729.493401,
+        "Greece": 3040.0,
+        "Italy": 5653.0,
+        "Japan": 3554.0,
+        "Portugal": 2794.0,
+        "Spain": 3050.0,
+        "West Germany": 7868.0,
+        "datatype": "gdp"
+      },
+      {
+        "Date": "1960-01-01T00:00:00",
+        "East Germany": 3927.0,
+        "Greece": 3146.0,
+        "Italy": 5916.0,
+        "Japan": 3986.0,
+        "Portugal": 2956.0,
+        "Spain": 3072.0,
+        "West Germany": 8464.0,
+        "datatype": "gdp"
+      },
+      {
+        "Date": "1961-01-01T00:00:00",
+        "East Germany": 3982.0,
+        "Greece": 3393.0,
+        "Italy": 6373.0,
+        "Japan": 4426.0,
+        "Portugal": 3119.0,
+        "Spain": 3436.0,
+        "West Germany": 8729.0,
+        "datatype": "gdp"
+      },
+      {
+        "Date": "1962-01-01T00:00:00",
+        "East Germany": 4122.0,
+        "Greece": 3499.0,
+        "Italy": 6827.0,
+        "Japan": 4777.0,
+        "Portugal": 3330.0,
+        "Spain": 3800.0,
+        "West Germany": 9023.0,
+        "datatype": "gdp"
+      },
+      {
+        "Date": "1963-01-01T00:00:00",
+        "East Germany": 4241.0,
+        "Greece": 3841.0,
+        "Italy": 7262.0,
+        "Japan": 5129.0,
+        "Portugal": 3504.0,
+        "Spain": 4151.0,
+        "West Germany": 9184.0,
+        "datatype": "gdp"
+      },
+      {
+        "Date": "1964-01-01T00:00:00",
+        "East Germany": 4347.0,
+        "Greece": 4141.0,
+        "Italy": 7487.0,
+        "Japan": 5668.0,
+        "Portugal": 3718.0,
+        "Spain": 4515.0,
+        "West Germany": 9697.0,
+        "datatype": "gdp"
+      },
+      {
+        "Date": "1965-01-01T00:00:00",
+        "East Germany": 4509.0,
+        "Greece": 4509.0,
+        "Italy": 7598.0,
+        "Japan": 5934.0,
+        "Portugal": 3992.0,
+        "Spain": 4762.0,
+        "West Germany": 10105.0,
+        "datatype": "gdp"
+      },
+      {
+        "Date": "1966-01-01T00:00:00",
+        "East Germany": 4637.0,
+        "Greece": 4749.0,
+        "Italy": 7942.0,
+        "Japan": 6506.0,
+        "Portugal": 4164.0,
+        "Spain": 5060.0,
+        "West Germany": 10299.0,
+        "datatype": "gdp"
+      },
+      {
+        "Date": "1967-01-01T00:00:00",
+        "East Germany": 4780.0,
+        "Greece": 4951.0,
+        "Italy": 8454.0,
+        "Japan": 7152.0,
+        "Portugal": 4481.0,
+        "Spain": 5334.0,
+        "West Germany": 10243.0,
+        "datatype": "gdp"
+      },
+      {
+        "Date": "1968-01-01T00:00:00",
+        "East Germany": 4997.0,
+        "Greece": 5266.0,
+        "Italy": 9105.0,
+        "Japan": 7983.0,
+        "Portugal": 4873.0,
+        "Spain": 5588.0,
+        "West Germany": 10772.0,
+        "datatype": "gdp"
+      },
+      {
+        "Date": "1969-01-01T00:00:00",
+        "East Germany": 5117.0,
+        "Greece": 5766.0,
+        "Italy": 9566.0,
+        "Japan": 8874.0,
+        "Portugal": 4987.0,
+        "Spain": 6032.0,
+        "West Germany": 11465.0,
+        "datatype": "gdp"
+      },
+      {
+        "Date": "1970-01-01T00:00:00",
+        "East Germany": 5254.0,
+        "Greece": 6211.0,
+        "Italy": 9719.0,
+        "Japan": 9714.0,
+        "Portugal": 5473.0,
+        "Spain": 6319.0,
+        "West Germany": 11934.0,
+        "datatype": "gdp"
+      },
+      {
+        "Date": "1971-01-01T00:00:00",
+        "East Germany": 5371.0,
+        "Greece": 6624.0,
+        "Italy": 9839.0,
+        "Japan": 10040.0,
+        "Portugal": 5871.0,
+        "Spain": 6618.0,
+        "West Germany": 12162.0,
+        "datatype": "gdp"
+      },
+      {
+        "Date": "1972-01-01T00:00:00",
+        "East Germany": 5558.0,
+        "Greece": 7400.0,
+        "Italy": 10060.0,
+        "Japan": 10734.0,
+        "Portugal": 6355.0,
+        "Spain": 7099.0,
+        "West Germany": 12604.0,
+        "datatype": "gdp"
+      },
+      {
+        "Date": "1973-01-01T00:00:00",
+        "East Germany": 5753.0,
+        "Greece": 7655.0,
+        "Italy": 10634.0,
+        "Japan": 11434.0,
+        "Portugal": 7063.0,
+        "Spain": 7661.0,
+        "West Germany": 13153.0,
+        "datatype": "gdp"
+      },
+      {
+        "Date": "1974-01-01T00:00:00",
+        "East Germany": 6048.0,
+        "Greece": 7350.0,
+        "Italy": 11046.0,
+        "Japan": 11145.0,
+        "Portugal": 7048.0,
+        "Spain": 8149.0,
+        "West Germany": 13172.0,
+        "datatype": "gdp"
+      },
+      {
+        "Date": "1975-01-01T00:00:00",
+        "East Germany": 6300.0,
+        "Greece": 7722.0,
+        "Italy": 10742.0,
+        "Japan": 11344.0,
+        "Portugal": 6517.0,
+        "Spain": 8346.0,
+        "West Germany": 13034.0,
+        "datatype": "gdp"
+      },
+      {
+        "Date": "1976-01-01T00:00:00",
+        "East Germany": 6451.0,
+        "Greece": 8105.0,
+        "Italy": 11385.0,
+        "Japan": 11669.0,
+        "Portugal": 6814.0,
+        "Spain": 8599.0,
+        "West Germany": 13798.0,
+        "datatype": "gdp"
+      },
+      {
+        "Date": "1977-01-01T00:00:00",
+        "East Germany": 6657.0,
+        "Greece": 8255.0,
+        "Italy": 11668.0,
+        "Japan": 12064.0,
+        "Portugal": 7166.0,
+        "Spain": 8833.0,
+        "West Germany": 14219.0,
+        "datatype": "gdp"
+      },
+      {
+        "Date": "1978-01-01T00:00:00",
+        "East Germany": 6774.0,
+        "Greece": 8695.0,
+        "Italy": 12064.0,
+        "Japan": 12585.0,
+        "Portugal": 7340.0,
+        "Spain": 9023.0,
+        "West Germany": 14664.0,
+        "datatype": "gdp"
+      },
+      {
+        "Date": "1979-01-01T00:00:00",
+        "East Germany": 6967.0,
+        "Greece": 8904.0,
+        "Italy": 12720.0,
+        "Japan": 13163.0,
+        "Portugal": 7733.0,
+        "Spain": 9068.0,
+        "West Germany": 15257.0,
+        "datatype": "gdp"
+      },
+      {
+        "Date": "1980-01-01T00:00:00",
+        "East Germany": 7118.0,
+        "Greece": 8971.0,
+        "Italy": 13149.0,
+        "Japan": 13428.0,
+        "Portugal": 8044.0,
+        "Spain": 9203.0,
+        "West Germany": 15371.0,
+        "datatype": "gdp"
+      },
+      {
+        "Date": "1981-01-01T00:00:00",
+        "East Germany": 7264.0,
+        "Greece": 8896.0,
+        "Italy": 13200.0,
+        "Japan": 13754.0,
+        "Portugal": 8114.0,
+        "Spain": 9186.0,
+        "West Germany": 15356.0,
+        "datatype": "gdp"
+      },
+      {
+        "Date": "1982-01-01T00:00:00",
+        "East Germany": 7241.0,
+        "Greece": 8879.0,
+        "Italy": 13252.0,
+        "Japan": 14078.0,
+        "Portugal": 8280.0,
+        "Spain": 9293.0,
+        "West Germany": 15224.0,
+        "datatype": "gdp"
+      },
+      {
+        "Date": "1983-01-01T00:00:00",
+        "East Germany": 7393.0,
+        "Greece": 8866.0,
+        "Italy": 13391.0,
+        "Japan": 14307.0,
+        "Portugal": 8255.0,
+        "Spain": 9478.0,
+        "West Germany": 15546.0,
+        "datatype": "gdp"
+      },
+      {
+        "Date": "1984-01-01T00:00:00",
+        "East Germany": 7617.0,
+        "Greece": 9067.0,
+        "Italy": 13719.0,
+        "Japan": 14773.0,
+        "Portugal": 8089.0,
+        "Spain": 9571.0,
+        "West Germany": 16048.0,
+        "datatype": "gdp"
+      },
+      {
+        "Date": "1985-01-01T00:00:00",
+        "East Germany": 7866.0,
+        "Greece": 9316.0,
+        "Italy": 14096.0,
+        "Japan": 15331.0,
+        "Portugal": 8306.0,
+        "Spain": 9722.0,
+        "West Germany": 16413.0,
+        "datatype": "gdp"
+      },
+      {
+        "Date": "1986-01-01T00:00:00",
+        "East Germany": 7989.0,
+        "Greece": 9440.0,
+        "Italy": 14496.0,
+        "Japan": 15679.0,
+        "Portugal": 8641.0,
+        "Spain": 9998.0,
+        "West Germany": 16787.0,
+        "datatype": "gdp"
+      },
+      {
+        "Date": "1987-01-01T00:00:00",
+        "East Germany": 8116.0,
+        "Greece": 9375.0,
+        "Italy": 14946.0,
+        "Japan": 16251.0,
+        "Portugal": 9185.0,
+        "Spain": 10520.0,
+        "West Germany": 17033.0,
+        "datatype": "gdp"
+      },
+      {
+        "Date": "1988-01-01T00:00:00",
+        "East Germany": 8192.0,
+        "Greece": 9784.0,
+        "Italy": 15523.0,
+        "Japan": 17185.0,
+        "Portugal": 9868.0,
+        "Spain": 11046.0,
+        "West Germany": 17560.0,
+        "datatype": "gdp"
+      },
+      {
+        "Date": "1989-01-01T00:00:00",
+        "East Germany": 8422.0,
+        "Greece": 10111.0,
+        "Italy": 15969.0,
+        "Japan": 17943.0,
+        "Portugal": 10372.0,
+        "Spain": 11582.0,
+        "West Germany": 18016.0,
+        "datatype": "gdp"
+      }
+    ]
+  },
+  "height": 800,
+  "layer": [
+    {
+      "data": {
+        "name": "data-2f93328731e1a2c5a7c8ac66624df0b4"
+      },
+      "encoding": {
+        "opacity": {
+          "condition": {
+            "selection": {
+              "not": "selector001"
+            },
+            "value": 0
+          },
+          "value": 1
+        },
+        "size": {
+          "value": 26
+        },
+        "x": {
+          "axis": {
+            "format": "%Y",
+            "formatType": "time",
+            "grid": true,
+            "labelAngle": 0
+          },
+          "field": "Date",
+          "timeUnit": "year",
+          "title": "Year",
+          "type": "temporal"
+        },
+        "y": {
+          "axis": {
+            "grid": true,
+            "title": "GDP (1990 US$)",
+            "values": [
+              125.0,
+              250.0,
+              500.0,
+              1000.0,
+              2000.0,
+              4000.0,
+              8000.0,
+              16000.0,
+              32000.0,
+              64000.0
+            ]
+          },
+          "field": "GDP",
+          "scale": {
+            "base": 2,
+            "type": "log"
+          },
+          "type": "quantitative"
+        }
+      },
+      "mark": "point"
+    },
+    {
+      "data": {
+        "name": "data-2f93328731e1a2c5a7c8ac66624df0b4"
+      },
+      "encoding": {
+        "color": {
+          "field": "Country",
+          "legend": null,
+          "scale": {
+            "scheme": "set2"
+          },
+          "type": "nominal"
+        },
+        "x": {
+          "axis": {
+            "format": "%Y",
+            "formatType": "time",
+            "grid": true,
+            "labelAngle": 0
+          },
+          "field": "Date",
+          "timeUnit": "year",
+          "title": "Year",
+          "type": "temporal"
+        },
+        "y": {
+          "axis": {
+            "grid": true,
+            "title": "GDP (1990 US$)",
+            "values": [
+              125.0,
+              250.0,
+              500.0,
+              1000.0,
+              2000.0,
+              4000.0,
+              8000.0,
+              16000.0,
+              32000.0,
+              64000.0
+            ]
+          },
+          "field": "GDP",
+          "scale": {
+            "base": 2,
+            "type": "log"
+          },
+          "type": "quantitative"
+        }
+      },
+      "mark": "line"
+    },
+    {
+      "data": {
+        "name": "data-2f93328731e1a2c5a7c8ac66624df0b4"
+      },
+      "encoding": {
+        "x": {
+          "field": "Date",
+          "type": "temporal"
+        }
+      },
+      "mark": {
+        "color": "gray",
+        "type": "rule"
+      },
+      "transform": [
+        {
+          "filter": {
+            "selection": "selector001"
+          }
+        }
+      ]
+    },
+    {
+      "data": {
+        "name": "data-394921ef2db1c6d115b6da0577e00453"
+      },
+      "encoding": {
+        "opacity": {
+          "value": 0
+        },
+        "tooltip": [
+          {
+            "field": "datatype",
+            "type": "nominal"
+          },
+          {
+            "field": "Date",
+            "format": "%Y",
+            "formatType": "time",
+            "title": "title"
+          },
+          {
+            "field": "East Germany",
+            "type": "quantitative"
+          },
+          {
+            "field": "Greece",
+            "type": "quantitative"
+          },
+          {
+            "field": "Italy",
+            "type": "quantitative"
+          },
+          {
+            "field": "Japan",
+            "type": "quantitative"
+          },
+          {
+            "field": "Portugal",
+            "type": "quantitative"
+          },
+          {
+            "field": "Spain",
+            "type": "quantitative"
+          },
+          {
+            "field": "West Germany",
+            "type": "quantitative"
+          }
+        ],
+        "x": {
+          "axis": {
+            "format": "%Y",
+            "formatType": "time",
+            "grid": true,
+            "labelAngle": 0
+          },
+          "field": "Date",
+          "timeUnit": "year",
+          "title": "Year",
+          "type": "temporal"
+        }
+      },
+      "mark": "point",
+      "selection": {
+        "selector001": {
+          "clear": "mouseout",
+          "empty": "none",
+          "fields": [
+            "Date"
+          ],
+          "nearest": true,
+          "on": "mouseover",
+          "type": "single"
+        }
+      }
+    }
+  ],
+  "usermeta": {
+    "customTooltip": {
+      "formatter": {
+        "gdp": {
+          "digits": 4,
+          "name": "USD"
+        }
+      }
+    }
+  },
+  "width": "container"
+};
+        const options = {"renderer": "canvas", "actions": false};
+        buildChart(spec, options);
+      </script>
+      <div id='custom-tooltip-element'></div>
+
+
+
+  </body>
+
+</html>

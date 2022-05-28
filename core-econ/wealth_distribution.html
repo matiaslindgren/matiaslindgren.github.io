@@ -1,0 +1,865 @@
+<!DOCTYPE HTML>
+<html lang="en">
+
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Measuring economic inequality
+</title>
+
+      <script src="https://cdn.jsdelivr.net/npm/vega@5" crossorigin="anonymous">
+      </script>
+      <script src="https://cdn.jsdelivr.net/npm/vega-lite@4" crossorigin="anonymous">
+      </script>
+      <script src="https://cdn.jsdelivr.net/npm/vega-embed@6" crossorigin="anonymous">
+      </script>
+
+    <link rel="stylesheet"
+          href="https://cdn.jsdelivr.net/npm/katex@0.15.3/dist/katex.min.css"
+          integrity="sha384-KiWOvVjnN8qwAZbuQyWDIbfCLFhLXNETzBQjA/92pIowpC0d2O3nppDGQVgwd2nB"
+          crossorigin="anonymous">
+    <script defer
+            src="https://cdn.jsdelivr.net/npm/katex@0.15.3/dist/katex.min.js"
+            integrity="sha384-0fdwu/T/EQMsQlrHCCHoH10pkPLlKA1jL5dFyUOvB3lfeT2540/2g6YgSi2BL14p"
+            crossorigin="anonymous">
+    </script>
+
+
+    <style>
+body {
+  font-family: Georgia, serif;
+  padding: 1rem;
+}
+
+a {
+  text-decoration: none;
+}
+
+a:hover {
+  text-decoration: underline;
+}
+
+#vega-container {
+  max-width: 70em;
+  width: 100%;
+}
+
+form.vega-bindings .vega-bind label {
+  display: grid;
+  grid-template-columns: 6em 14em 6em;
+}
+
+form.vega-bindings .vega-bind label span {
+  margin-left: 0.5em;
+}
+
+dl {
+  padding-top: 1rem;
+  padding-bottom: 1rem;
+  max-width: 800px;
+}
+
+dl,
+dd {
+  font-size: 0.9rem;
+}
+
+dt {
+  font-weight: bold;
+}
+
+dd {
+  margin-bottom: 1rem;
+}
+
+ul.data-source-url-list {
+  padding: 0;
+  list-style: none;
+}
+
+table {
+  border-collapse: collapse;
+  width: 100%;
+  max-width: 800px;
+}
+
+table td {
+  vertical-align: baseline;
+}
+
+table tr {
+  border-bottom: 1px solid lightgray;
+}
+
+table.tooltip {
+  border-collapse: initial;
+  width: initial;
+  max-width: initial;
+}
+
+table.tooltip tbody tr td {
+  vertical-align: middle;
+}
+
+#custom-tooltip-element.visible {
+  visibility: visible;
+}
+
+#custom-tooltip-element {
+  visibility: hidden;
+  padding: 0.5rem;
+  position: fixed;
+  z-index: 1000;
+  font-size: 0.8rem;
+  border-radius: 3px;
+  box-shadow: 2px 2px 4px rgba(0, 0, 0, 0.1);
+  background-color: rgba(255, 255, 255, 0.95);
+  border: 1px solid #d9d9d9;
+  color: black;
+}
+
+dd.module-description ul {
+  padding-left: 0px;
+  list-style-position: inside;
+}    </style>
+
+<style>
+#vega-container .gini-container {
+    font-size: 1.5em;
+    margin: 1em 0;
+}
+form.vega-bindings .vega-bind label.inputs-header {
+    margin-top: 1em;
+    margin-bottom: 0.5em;
+}
+form.vega-bindings .vega-bind label.inputs-header span {
+    font-weight: bold;
+}
+form.vega-bindings .vega-bind label {
+    display: grid;
+    grid-template-columns: 5em 16em 2em;
+}
+form.vega-bindings .vega-bind button.randomize-button {
+    width: 28em;
+    margin-top: 0.5em;
+}
+form.vega-bindings .vega-bind label:not(.inputs-header) span:not(.vega-bind-name) {
+    justify-content: right;
+    display: grid;
+}
+form.vega-bindings .vega-bind label:not(.inputs-header) span.vega-bind-name {
+    font-size: 1.5em;
+}
+form.vega-bindings .vega-bind label span {
+    margin-left: 0;
+}
+</style>
+<script>
+function chooseRandom(a) {
+  return a[Math.floor(Math.random() * a.length)];
+}
+
+function create(tag, cls, text) {
+  const e = document.createElement(tag);
+  if (cls) {
+    e.classList.add(cls);
+  }
+  if (text) {
+    e.innerText = text;
+  }
+  return e;
+}
+
+function randomizeEmojis() {
+  const people = [
+    "&#x1F468;",
+    "&#x1F469;",
+    "&#x1F471;",
+    "&#x1F474;",
+    "&#x1F475;",
+    "&#x1F9D1;",
+    "&#x1F9D3;",
+    "&#x1F9D4;",
+  ];
+  const skinColors = ["&#x1F3FB;", "&#x1F3FC;", "&#x1F3FD;", "&#x1F3FE;", "&#x1F3FF;"];
+  const emojiSpans = document.querySelectorAll("form.vega-bindings .vega-bind span.emoji");
+  for (const span of emojiSpans) {
+    span.innerHTML = chooseRandom(people) + chooseRandom(skinColors);
+  }
+}
+
+function inputs() {
+  return document.querySelectorAll("form.vega-bindings .vega-bind input[type='range']");
+}
+
+function randomizeIncomes() {
+  for (const input of inputs()) {
+    input.value = Math.min(100, Math.max(0, 100 * Math.random()));
+    input.dispatchEvent(new Event("change"));
+  }
+}
+
+function sortInputsByIncome() {
+  let rows = Array.from(inputs(), (x) => x.parentElement.parentElement);
+  const inputValue = (row) => parseFloat(row.querySelector("label input[type='range']").value);
+  rows = rows.sort((a, b) => inputValue(b) - inputValue(a));
+  for (const row of rows) {
+    row.parentElement.insertBefore(row, row.parentElement.lastChild);
+  }
+}
+
+function updateGini() {
+  vegaView.runAsync().then(() => {
+    const gini = vegaView.data("layer_0_layer_0_pathgroup")[0].datum.gini;
+    if (!Number.isFinite(gini)) {
+      return;
+    }
+    const fmt = new Intl.NumberFormat("en-US", {
+      style: "percent",
+      maximumFractionDigits: 1,
+    });
+    document.getElementById("gini-label").innerText = fmt.format(gini);
+  });
+}
+
+function main() {
+  const inputForm = document.querySelector("form.vega-bindings");
+
+  const topRow = create("div", "vega-bind");
+  topRow.innerHTML = `
+    <label class='inputs-header'>
+      <span class='vega-bind-name'>Person</span>
+      <span>Income</span>
+    </label>`;
+  inputForm.insertBefore(topRow, inputForm.firstChild);
+
+  const vegaContainer = document.getElementById("vega-container");
+  const giniContainer = create("div", "gini-container");
+  giniContainer.innerHTML = "<span>Gini: </span><span id='gini-label'></span>";
+  vegaContainer.insertBefore(giniContainer, vegaContainer.lastChild);
+
+  for (const input of inputs()) {
+    const oninput = input.oninput;
+    input.oninput = (e) => {
+      updateGini();
+      e.preventDefault();
+      if (oninput) {
+        oninput(e);
+      }
+    };
+  }
+
+  const inputNames = document.querySelectorAll("form.vega-bindings .vega-bind span.vega-bind-name");
+  for (const name of inputNames) {
+    if (/^person_\d+:$/.test(name.innerText)) {
+      name.classList.add("emoji");
+    }
+  }
+
+  const randomizeButton = create("button", "randomize-button", "Randomize");
+  randomizeButton.onclick = (e) => {
+    randomizeEmojis();
+    randomizeIncomes();
+    sortInputsByIncome();
+    updateGini();
+    e.preventDefault();
+  };
+  const bottomRow = create("div", "vega-bind");
+  bottomRow.appendChild(randomizeButton);
+  inputForm.appendChild(bottomRow);
+
+  randomizeEmojis();
+  updateGini();
+}
+
+window.addEventListener("DOMContentLoaded", main);</script>
+
+  </head>
+
+  <body>
+    <a href="index.html">go back</a>
+    <h1>Measuring economic inequality
+</h1>
+    <dl>
+      <dt>Updated at</dt>
+      <dd>29. May 2022</dd>
+        <dt>Description</dt>
+        <dd class="module-description">
+              <span class='equations'>The Gini coefficient <span class="kx">G</span> is computed according to the definition in <a href='https://en.wikipedia.org/wiki/Gini_coefficient#Definition'>Wikipedia</a>, i.e. </br> <span class="kx">\displaystyle G := \frac{\displaystyle \sum_{i=1}^{n} \sum_{j=1}^n |x_i-x_j|}{\displaystyle 2 n^2 \overline{x}},</span> where <span class="kx">x_i</span> is the income of person <span class="kx">i</span>, out of a total of <span class="kx">n</span> persons. </span>
+        </dd>
+        <dt>Book chapter</dt>
+        <dd><a href="https://core-econ.org/the-economy/book/text/05.html#512-measuring-economic-inequality
+">5.12 Measuring economic inequality
+</a></dd>
+    </dl>
+
+
+      <div id="vega-container"></div>
+      <script type="text/javascript">
+function renderTooltip(event, value, config) {
+  const tooltipContainer = document.getElementById("custom-tooltip-element");
+  tooltipContainer.classList.add("visible");
+  if (!value) {
+    tooltipContainer.classList.remove("visible");
+    return;
+  }
+  tooltipContainer.setAttribute(
+    "style",
+    `top: ${event.clientY + 15}px; left: ${event.clientX + 15}px`
+  );
+  const colorScheme = vega.scheme(findScheme(spec));
+  let { datatype, title, ...values } = value;
+  values = Array.from(Object.keys(values), (key, i) => ({
+    key: key,
+    val: values[key],
+    color: colorScheme[i],
+  }));
+  values.sort((a, b) => parseFloat(b.val) - parseFloat(a.val));
+  const fmt = getFormatter(config.formatter[datatype]);
+  tooltipContainer.innerHTML = sortedTable(title, values, fmt).outerHTML;
+}
+
+function getFormatter({ name, digits }) {
+  const currency = (c) =>
+    Intl.NumberFormat("en-US", {
+      maximumSignificantDigits: digits,
+      style: "currency",
+      currency: c,
+    });
+  const unit = (u) =>
+    Intl.NumberFormat("en-US", { maximumSignificantDigits: digits, style: "unit", unit: u });
+  switch (name) {
+    case "hour":
+      return unit("hour");
+    case "USD":
+    default:
+      return currency("USD");
+  }
+}
+
+function svgCircle(color) {
+  return [
+    `<svg style="display: table-cell; height: 1em; width: 1em; fill: ${color};" viewBox="0 0 2 2" xmlns="http://www.w3.org/2000/svg">`,
+    `<circle cx="1.1" cy="1.1" r="0.8"/>`,
+    `</svg>`,
+  ].join("\n");
+}
+
+const element = (tag) => document.createElement(tag);
+
+function findScheme(spec) {
+  for (const layer of spec.hconcat || spec.vconcat || spec.layer) {
+    const scheme =
+      layer &&
+      layer.encoding &&
+      layer.encoding.color &&
+      layer.encoding.color.scale &&
+      layer.encoding.color.scale.scheme;
+    if (scheme) {
+      return scheme;
+    }
+  }
+  return "tableau10";
+}
+
+function sortedTable(title, values, fmt) {
+  const container = element("div");
+  const header = element("h4");
+  header.setAttribute("style", "margin: 0 auto 0.5em;");
+  header.innerText = title;
+  container.appendChild(header);
+  const tbody = element("tbody");
+  for (let row of values) {
+    const tr = element("tr");
+    tr.innerHTML = [
+      `<td>${svgCircle(row.color)}</td>`,
+      `<td>${row.key}</td>`,
+      `<td>${fmt.format(row.val)}</td>`,
+    ].join("\n");
+    tbody.appendChild(tr);
+  }
+  const table = element("table");
+  table.classList.add("tooltip");
+  table.appendChild(tbody);
+  container.appendChild(table);
+  return container;
+}
+
+let vegaView;
+
+function buildChart(spec, options) {
+  vegaEmbed("#vega-container", spec, options)
+    .then((result) => {
+      vegaView = result.view;
+      const meta = spec.usermeta;
+      if (!meta) {
+        return;
+      }
+      if (meta.inputsOnTop) {
+        const bindings = document.querySelector("#vega-container.vega-embed form.vega-bindings");
+        const canvas = document.querySelector("#vega-container.vega-embed canvas");
+        canvas.parentNode.insertBefore(bindings, canvas);
+      }
+      if (meta.customTooltip) {
+        result.view.tooltip((handler, event, item, value) =>
+          renderTooltip(event, value, meta.customTooltip)
+        );
+      }
+      return result.view.runAsync();
+    })
+    .catch(console.error);
+}        const spec = {
+  "$schema": "https://vega.github.io/schema/vega-lite/v4.17.0.json",
+  "config": {
+    "axis": {
+      "labelFont": "Georgia",
+      "labelFontSize": 14,
+      "titleFont": "Georgia",
+      "titleFontSize": 16
+    },
+    "header": {
+      "labelFont": "Georgia",
+      "labelFontSize": 14,
+      "titleFont": "Georgia",
+      "titleFontSize": 16
+    },
+    "legend": {
+      "labelFont": "Georgia",
+      "labelFontSize": 14,
+      "titleFont": "Georgia",
+      "titleFontSize": 16
+    },
+    "title": {
+      "font": "Georgia",
+      "fontSize": 16
+    },
+    "view": {
+      "continuousHeight": 300,
+      "continuousWidth": 400
+    }
+  },
+  "datasets": {
+    "data-6eba7dc87b1ed1ac4235f57146d29cf1": [
+      {
+        "person_1": 4.0,
+        "person_10": 3.0,
+        "person_2": 16.0,
+        "person_3": 67.0,
+        "person_4": 100.0,
+        "person_5": 14.0,
+        "person_6": 10.0,
+        "person_7": 17.0,
+        "person_8": 4.0,
+        "person_9": 44.0
+      }
+    ],
+    "data-75780366fffaeed592e3b07b4cd3ff4c": [
+      {
+        "text": "Line of equality",
+        "x": 0.5,
+        "y": 0.5
+      }
+    ]
+  },
+  "height": 600,
+  "layer": [
+    {
+      "data": {
+        "name": "data-6eba7dc87b1ed1ac4235f57146d29cf1"
+      },
+      "encoding": {
+        "color": {
+          "field": "gini",
+          "legend": null,
+          "scale": {
+            "domainMax": 0.5,
+            "domainMin": 0,
+            "scheme": "reds"
+          },
+          "type": "quantitative"
+        },
+        "tooltip": [
+          {
+            "field": "gini",
+            "format": ".1%",
+            "title": "Gini",
+            "type": "quantitative"
+          }
+        ],
+        "x": {
+          "axis": {
+            "format": "%"
+          },
+          "field": "population_share",
+          "scale": {
+            "domainMax": 1,
+            "domainMin": 0
+          },
+          "title": "Cumulative share of people, ordered by income",
+          "type": "quantitative"
+        },
+        "y": {
+          "axis": {
+            "format": "%"
+          },
+          "field": "population_share",
+          "scale": {
+            "domainMax": 1,
+            "domainMin": 0
+          },
+          "title": "Cumulative share of income",
+          "type": "quantitative"
+        },
+        "y2": {
+          "field": "income_share"
+        }
+      },
+      "mark": {
+        "line": true,
+        "type": "area"
+      },
+      "selection": {
+        "selector001": {
+          "bind": {
+            "input": "range",
+            "max": 100,
+            "min": 0,
+            "name": "person_10:",
+            "step": 1
+          },
+          "fields": [
+            "person_10"
+          ],
+          "init": {
+            "person_10": 3.0
+          },
+          "type": "single"
+        },
+        "selector002": {
+          "bind": {
+            "input": "range",
+            "max": 100,
+            "min": 0,
+            "name": "person_1:",
+            "step": 1
+          },
+          "fields": [
+            "person_1"
+          ],
+          "init": {
+            "person_1": 4.0
+          },
+          "type": "single"
+        },
+        "selector003": {
+          "bind": {
+            "input": "range",
+            "max": 100,
+            "min": 0,
+            "name": "person_8:",
+            "step": 1
+          },
+          "fields": [
+            "person_8"
+          ],
+          "init": {
+            "person_8": 4.0
+          },
+          "type": "single"
+        },
+        "selector004": {
+          "bind": {
+            "input": "range",
+            "max": 100,
+            "min": 0,
+            "name": "person_6:",
+            "step": 1
+          },
+          "fields": [
+            "person_6"
+          ],
+          "init": {
+            "person_6": 10.0
+          },
+          "type": "single"
+        },
+        "selector005": {
+          "bind": {
+            "input": "range",
+            "max": 100,
+            "min": 0,
+            "name": "person_5:",
+            "step": 1
+          },
+          "fields": [
+            "person_5"
+          ],
+          "init": {
+            "person_5": 14.0
+          },
+          "type": "single"
+        },
+        "selector006": {
+          "bind": {
+            "input": "range",
+            "max": 100,
+            "min": 0,
+            "name": "person_2:",
+            "step": 1
+          },
+          "fields": [
+            "person_2"
+          ],
+          "init": {
+            "person_2": 16.0
+          },
+          "type": "single"
+        },
+        "selector007": {
+          "bind": {
+            "input": "range",
+            "max": 100,
+            "min": 0,
+            "name": "person_7:",
+            "step": 1
+          },
+          "fields": [
+            "person_7"
+          ],
+          "init": {
+            "person_7": 17.0
+          },
+          "type": "single"
+        },
+        "selector008": {
+          "bind": {
+            "input": "range",
+            "max": 100,
+            "min": 0,
+            "name": "person_9:",
+            "step": 1
+          },
+          "fields": [
+            "person_9"
+          ],
+          "init": {
+            "person_9": 44.0
+          },
+          "type": "single"
+        },
+        "selector009": {
+          "bind": {
+            "input": "range",
+            "max": 100,
+            "min": 0,
+            "name": "person_3:",
+            "step": 1
+          },
+          "fields": [
+            "person_3"
+          ],
+          "init": {
+            "person_3": 67.0
+          },
+          "type": "single"
+        },
+        "selector010": {
+          "bind": {
+            "input": "range",
+            "max": 100,
+            "min": 0,
+            "name": "person_4:",
+            "step": 1
+          },
+          "fields": [
+            "person_4"
+          ],
+          "init": {
+            "person_4": 100.0
+          },
+          "type": "single"
+        }
+      },
+      "transform": [
+        {
+          "as": "dummy_zero",
+          "calculate": "0"
+        },
+        {
+          "as": "person_1",
+          "calculate": "(1.0 * selector002['person_1'])"
+        },
+        {
+          "as": "person_2",
+          "calculate": "(1.0 * selector006['person_2'])"
+        },
+        {
+          "as": "person_3",
+          "calculate": "(1.0 * selector009['person_3'])"
+        },
+        {
+          "as": "person_4",
+          "calculate": "(1.0 * selector010['person_4'])"
+        },
+        {
+          "as": "person_5",
+          "calculate": "(1.0 * selector005['person_5'])"
+        },
+        {
+          "as": "person_6",
+          "calculate": "(1.0 * selector004['person_6'])"
+        },
+        {
+          "as": "person_7",
+          "calculate": "(1.0 * selector007['person_7'])"
+        },
+        {
+          "as": "person_8",
+          "calculate": "(1.0 * selector003['person_8'])"
+        },
+        {
+          "as": "person_9",
+          "calculate": "(1.0 * selector008['person_9'])"
+        },
+        {
+          "as": "person_10",
+          "calculate": "(1.0 * selector001['person_10'])"
+        },
+        {
+          "as": [
+            "group",
+            "income"
+          ],
+          "fold": [
+            "dummy_zero",
+            "person_1",
+            "person_2",
+            "person_3",
+            "person_4",
+            "person_5",
+            "person_6",
+            "person_7",
+            "person_8",
+            "person_9",
+            "person_10"
+          ]
+        },
+        {
+          "ignorePeers": true,
+          "sort": [
+            {
+              "field": "income"
+            }
+          ],
+          "window": [
+            {
+              "as": "cumulative_income",
+              "field": "income",
+              "op": "sum"
+            },
+            {
+              "as": "row_number",
+              "field": "income",
+              "op": "row_number"
+            }
+          ]
+        },
+        {
+          "joinaggregate": [
+            {
+              "as": "total_income",
+              "field": "income",
+              "op": "sum"
+            }
+          ]
+        },
+        {
+          "as": "income_share",
+          "calculate": "(datum.cumulative_income / datum.total_income)"
+        },
+        {
+          "as": "population_share",
+          "calculate": "((datum.row_number - 1) / 10)"
+        },
+        {
+          "as": "mean_income",
+          "calculate": "(datum.total_income / 10)"
+        },
+        {
+          "as": "mean_abs_diff",
+          "calculate": "(((((((((((0 + abs((datum.income - datum['person_1']))) + abs((datum.income - datum['person_2']))) + abs((datum.income - datum['person_3']))) + abs((datum.income - datum['person_4']))) + abs((datum.income - datum['person_5']))) + abs((datum.income - datum['person_6']))) + abs((datum.income - datum['person_7']))) + abs((datum.income - datum['person_8']))) + abs((datum.income - datum['person_9']))) + abs((datum.income - datum['person_10']))) / 10)"
+        },
+        {
+          "as": "mean_abs_diff",
+          "calculate": "(datum.group === 'dummy_zero') ? 0 : datum.mean_abs_diff"
+        },
+        {
+          "joinaggregate": [
+            {
+              "as": "total_mean_abs_diff",
+              "field": "mean_abs_diff",
+              "op": "sum"
+            }
+          ]
+        },
+        {
+          "as": "gini",
+          "calculate": "(datum.total_mean_abs_diff / ((2 * datum.mean_income) * 10))"
+        },
+        {
+          "as": "income_share",
+          "calculate": "isNumber(datum.income_share) ? datum.income_share : datum.population_share"
+        },
+        {
+          "as": "gini",
+          "calculate": "datum.gini || 0"
+        }
+      ]
+    },
+    {
+      "data": {
+        "name": "data-75780366fffaeed592e3b07b4cd3ff4c"
+      },
+      "encoding": {
+        "text": {
+          "field": "text",
+          "type": "nominal"
+        },
+        "x": {
+          "field": "x",
+          "type": "quantitative"
+        },
+        "y": {
+          "field": "y",
+          "type": "quantitative"
+        }
+      },
+      "mark": {
+        "angle": 315,
+        "dy": -15,
+        "fontSize": 16,
+        "type": "text"
+      }
+    }
+  ],
+  "width": 600
+};
+        const options = {"renderer": "canvas", "actions": false};
+        buildChart(spec, options);
+      </script>
+      <div id='custom-tooltip-element'></div>
+
+
+      <script type="text/javascript">
+function main() {
+  for (const e of document.querySelectorAll(".equations span.kx")) {
+    katex.render(e.innerText, e);
+    e.classList.remove("kx");
+  }
+}
+
+window.addEventListener("DOMContentLoaded", main);      </script>
+
+  </body>
+
+</html>

@@ -1,0 +1,975 @@
+<!DOCTYPE HTML>
+<html lang="en">
+
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Escape from Malthus
+</title>
+
+      <script src="https://cdn.jsdelivr.net/npm/vega@5" crossorigin="anonymous">
+      </script>
+      <script src="https://cdn.jsdelivr.net/npm/vega-lite@4" crossorigin="anonymous">
+      </script>
+      <script src="https://cdn.jsdelivr.net/npm/vega-embed@6" crossorigin="anonymous">
+      </script>
+
+
+
+    <style>
+body {
+  font-family: Georgia, serif;
+  padding: 1rem;
+}
+
+a {
+  text-decoration: none;
+}
+
+a:hover {
+  text-decoration: underline;
+}
+
+#vega-container {
+  max-width: 70em;
+  width: 100%;
+}
+
+form.vega-bindings .vega-bind label {
+  display: grid;
+  grid-template-columns: 6em 14em 6em;
+}
+
+form.vega-bindings .vega-bind label span {
+  margin-left: 0.5em;
+}
+
+dl {
+  padding-top: 1rem;
+  padding-bottom: 1rem;
+  max-width: 800px;
+}
+
+dl,
+dd {
+  font-size: 0.9rem;
+}
+
+dt {
+  font-weight: bold;
+}
+
+dd {
+  margin-bottom: 1rem;
+}
+
+ul.data-source-url-list {
+  padding: 0;
+  list-style: none;
+}
+
+table {
+  border-collapse: collapse;
+  width: 100%;
+  max-width: 800px;
+}
+
+table td {
+  vertical-align: baseline;
+}
+
+table tr {
+  border-bottom: 1px solid lightgray;
+}
+
+table.tooltip {
+  border-collapse: initial;
+  width: initial;
+  max-width: initial;
+}
+
+table.tooltip tbody tr td {
+  vertical-align: middle;
+}
+
+#custom-tooltip-element.visible {
+  visibility: visible;
+}
+
+#custom-tooltip-element {
+  visibility: hidden;
+  padding: 0.5rem;
+  position: fixed;
+  z-index: 1000;
+  font-size: 0.8rem;
+  border-radius: 3px;
+  box-shadow: 2px 2px 4px rgba(0, 0, 0, 0.1);
+  background-color: rgba(255, 255, 255, 0.95);
+  border: 1px solid #d9d9d9;
+  color: black;
+}
+
+dd.module-description ul {
+  padding-left: 0px;
+  list-style-position: inside;
+}    </style>
+
+
+  </head>
+
+  <body>
+    <a href="index.html">go back</a>
+    <h1>Escape from Malthus
+</h1>
+    <dl>
+      <dt>Updated at</dt>
+      <dd>29. May 2022</dd>
+        <dt>Description</dt>
+        <dd class="module-description">
+              Escape from Malthus: industrial revolution, increasing wages, and increasing population.
+
+        </dd>
+        <dt>Data source</dt>
+        <dd>Clark, G. (2005), 'The Condition of the Working Class in England', 1209–2004, Journal of Political Economy, Vol. 113, No. 6 (December 2005), pp. 1307-1340
+</dd>
+        <dt>Data downloaded from</dt>
+        <dd>
+          <a href="https://ourworldindata.org/grapher/escaping-the-malthusian-trap">Our World in Data</a>
+        </dd>
+        <dt>Book chapter</dt>
+        <dd><a href="https://core-econ.org/the-economy/book/text/02.html#210-escaping-from-malthusian-stagnation
+">2.10 Escaping from Malthusian stagnation
+</a></dd>
+    </dl>
+
+
+      <div id="vega-container"></div>
+      <script type="text/javascript">
+function renderTooltip(event, value, config) {
+  const tooltipContainer = document.getElementById("custom-tooltip-element");
+  tooltipContainer.classList.add("visible");
+  if (!value) {
+    tooltipContainer.classList.remove("visible");
+    return;
+  }
+  tooltipContainer.setAttribute(
+    "style",
+    `top: ${event.clientY + 15}px; left: ${event.clientX + 15}px`
+  );
+  const colorScheme = vega.scheme(findScheme(spec));
+  let { datatype, title, ...values } = value;
+  values = Array.from(Object.keys(values), (key, i) => ({
+    key: key,
+    val: values[key],
+    color: colorScheme[i],
+  }));
+  values.sort((a, b) => parseFloat(b.val) - parseFloat(a.val));
+  const fmt = getFormatter(config.formatter[datatype]);
+  tooltipContainer.innerHTML = sortedTable(title, values, fmt).outerHTML;
+}
+
+function getFormatter({ name, digits }) {
+  const currency = (c) =>
+    Intl.NumberFormat("en-US", {
+      maximumSignificantDigits: digits,
+      style: "currency",
+      currency: c,
+    });
+  const unit = (u) =>
+    Intl.NumberFormat("en-US", { maximumSignificantDigits: digits, style: "unit", unit: u });
+  switch (name) {
+    case "hour":
+      return unit("hour");
+    case "USD":
+    default:
+      return currency("USD");
+  }
+}
+
+function svgCircle(color) {
+  return [
+    `<svg style="display: table-cell; height: 1em; width: 1em; fill: ${color};" viewBox="0 0 2 2" xmlns="http://www.w3.org/2000/svg">`,
+    `<circle cx="1.1" cy="1.1" r="0.8"/>`,
+    `</svg>`,
+  ].join("\n");
+}
+
+const element = (tag) => document.createElement(tag);
+
+function findScheme(spec) {
+  for (const layer of spec.hconcat || spec.vconcat || spec.layer) {
+    const scheme =
+      layer &&
+      layer.encoding &&
+      layer.encoding.color &&
+      layer.encoding.color.scale &&
+      layer.encoding.color.scale.scheme;
+    if (scheme) {
+      return scheme;
+    }
+  }
+  return "tableau10";
+}
+
+function sortedTable(title, values, fmt) {
+  const container = element("div");
+  const header = element("h4");
+  header.setAttribute("style", "margin: 0 auto 0.5em;");
+  header.innerText = title;
+  container.appendChild(header);
+  const tbody = element("tbody");
+  for (let row of values) {
+    const tr = element("tr");
+    tr.innerHTML = [
+      `<td>${svgCircle(row.color)}</td>`,
+      `<td>${row.key}</td>`,
+      `<td>${fmt.format(row.val)}</td>`,
+    ].join("\n");
+    tbody.appendChild(tr);
+  }
+  const table = element("table");
+  table.classList.add("tooltip");
+  table.appendChild(tbody);
+  container.appendChild(table);
+  return container;
+}
+
+let vegaView;
+
+function buildChart(spec, options) {
+  vegaEmbed("#vega-container", spec, options)
+    .then((result) => {
+      vegaView = result.view;
+      const meta = spec.usermeta;
+      if (!meta) {
+        return;
+      }
+      if (meta.inputsOnTop) {
+        const bindings = document.querySelector("#vega-container.vega-embed form.vega-bindings");
+        const canvas = document.querySelector("#vega-container.vega-embed canvas");
+        canvas.parentNode.insertBefore(bindings, canvas);
+      }
+      if (meta.customTooltip) {
+        result.view.tooltip((handler, event, item, value) =>
+          renderTooltip(event, value, meta.customTooltip)
+        );
+      }
+      return result.view.runAsync();
+    })
+    .catch(console.error);
+}        const spec = {
+  "$schema": "https://vega.github.io/schema/vega-lite/v4.17.0.json",
+  "config": {
+    "axis": {
+      "labelFont": "Georgia",
+      "labelFontSize": 14,
+      "titleFont": "Georgia",
+      "titleFontSize": 16
+    },
+    "header": {
+      "labelFont": "Georgia",
+      "labelFontSize": 14,
+      "titleFont": "Georgia",
+      "titleFontSize": 16
+    },
+    "legend": {
+      "labelFont": "Georgia",
+      "labelFontSize": 14,
+      "titleFont": "Georgia",
+      "titleFontSize": 16
+    },
+    "title": {
+      "font": "Georgia",
+      "fontSize": 16
+    },
+    "view": {
+      "continuousHeight": 300,
+      "continuousWidth": 400
+    }
+  },
+  "data": {
+    "name": "data-d2300e3a25192af3e2634f09abaa02f1"
+  },
+  "datasets": {
+    "data-41306ac50674a207a416db7ac234d06d": [
+      {
+        "Year": 1280
+      },
+      {
+        "Year": 1290
+      },
+      {
+        "Year": 1300
+      },
+      {
+        "Year": 1310
+      },
+      {
+        "Year": 1320
+      },
+      {
+        "Year": 1330
+      },
+      {
+        "Year": 1340
+      },
+      {
+        "Year": 1350
+      },
+      {
+        "Year": 1360
+      },
+      {
+        "Year": 1370
+      },
+      {
+        "Year": 1380
+      },
+      {
+        "Year": 1390
+      },
+      {
+        "Year": 1400
+      },
+      {
+        "Year": 1410
+      },
+      {
+        "Year": 1420
+      },
+      {
+        "Year": 1430
+      },
+      {
+        "Year": 1440
+      },
+      {
+        "Year": 1450
+      },
+      {
+        "Year": 1460
+      },
+      {
+        "Year": 1470
+      },
+      {
+        "Year": 1480
+      },
+      {
+        "Year": 1490
+      },
+      {
+        "Year": 1500
+      },
+      {
+        "Year": 1510
+      },
+      {
+        "Year": 1520
+      },
+      {
+        "Year": 1530
+      },
+      {
+        "Year": 1540
+      },
+      {
+        "Year": 1550
+      },
+      {
+        "Year": 1560
+      },
+      {
+        "Year": 1570
+      },
+      {
+        "Year": 1580
+      },
+      {
+        "Year": 1590
+      },
+      {
+        "Year": 1600
+      },
+      {
+        "Year": 1610
+      },
+      {
+        "Year": 1620
+      },
+      {
+        "Year": 1630
+      },
+      {
+        "Year": 1640
+      },
+      {
+        "Year": 1650
+      },
+      {
+        "Year": 1660
+      },
+      {
+        "Year": 1670
+      },
+      {
+        "Year": 1680
+      },
+      {
+        "Year": 1690
+      },
+      {
+        "Year": 1700
+      },
+      {
+        "Year": 1710
+      },
+      {
+        "Year": 1720
+      },
+      {
+        "Year": 1730
+      },
+      {
+        "Year": 1740
+      },
+      {
+        "Year": 1750
+      },
+      {
+        "Year": 1760
+      },
+      {
+        "Year": 1770
+      },
+      {
+        "Year": 1780
+      },
+      {
+        "Year": 1790
+      },
+      {
+        "Year": 1800
+      },
+      {
+        "Year": 1810
+      },
+      {
+        "Year": 1820
+      },
+      {
+        "Year": 1830
+      },
+      {
+        "Year": 1840
+      },
+      {
+        "Year": 1850
+      },
+      {
+        "Year": 1860
+      }
+    ],
+    "data-d2300e3a25192af3e2634f09abaa02f1": [
+      {
+        "Population (millions)": 4.877514307,
+        "Real wage index (1860 = 100)": 60.92501464,
+        "Year": 1280
+      },
+      {
+        "Population (millions)": 5.318691869,
+        "Real wage index (1860 = 100)": 53.30335647,
+        "Year": 1290
+      },
+      {
+        "Population (millions)": 5.315173157,
+        "Real wage index (1860 = 100)": 61.63591845,
+        "Year": 1300
+      },
+      {
+        "Population (millions)": 5.610200089,
+        "Real wage index (1860 = 100)": 60.14449431,
+        "Year": 1310
+      },
+      {
+        "Population (millions)": 4.971000447,
+        "Real wage index (1860 = 100)": 65.26794587,
+        "Year": 1320
+      },
+      {
+        "Population (millions)": 4.679792882,
+        "Real wage index (1860 = 100)": 72.1402233,
+        "Year": 1330
+      },
+      {
+        "Population (millions)": 4.390117723,
+        "Real wage index (1860 = 100)": 61.78942161,
+        "Year": 1340
+      },
+      {
+        "Population (millions)": 3.544732635,
+        "Real wage index (1860 = 100)": 61.23224725,
+        "Year": 1350
+      },
+      {
+        "Population (millions)": 3.169228999,
+        "Real wage index (1860 = 100)": 71.31408642,
+        "Year": 1360
+      },
+      {
+        "Population (millions)": 3.162291556,
+        "Real wage index (1860 = 100)": 78.31033164,
+        "Year": 1370
+      },
+      {
+        "Population (millions)": 2.81116642,
+        "Real wage index (1860 = 100)": 83.69832064,
+        "Year": 1380
+      },
+      {
+        "Population (millions)": 2.818582914,
+        "Real wage index (1860 = 100)": 83.94104119,
+        "Year": 1390
+      },
+      {
+        "Population (millions)": 2.640139428,
+        "Real wage index (1860 = 100)": 85.4825834,
+        "Year": 1400
+      },
+      {
+        "Population (millions)": 2.537980261,
+        "Real wage index (1860 = 100)": 90.47786486,
+        "Year": 1410
+      },
+      {
+        "Population (millions)": 2.46949931,
+        "Real wage index (1860 = 100)": 94.47689903,
+        "Year": 1420
+      },
+      {
+        "Population (millions)": 2.509888171,
+        "Real wage index (1860 = 100)": 84.34230112,
+        "Year": 1430
+      },
+      {
+        "Population (millions)": 2.273101827,
+        "Real wage index (1860 = 100)": 93.41285878,
+        "Year": 1440
+      },
+      {
+        "Population (millions)": 2.279884381,
+        "Real wage index (1860 = 100)": 93.35734058,
+        "Year": 1450
+      },
+      {
+        "Population (millions)": 2.320873579,
+        "Real wage index (1860 = 100)": 93.38975272,
+        "Year": 1460
+      },
+      {
+        "Population (millions)": 2.380128732,
+        "Real wage index (1860 = 100)": 93.02829541,
+        "Year": 1470
+      },
+      {
+        "Population (millions)": 2.402803169,
+        "Real wage index (1860 = 100)": 88.05225419,
+        "Year": 1480
+      },
+      {
+        "Population (millions)": 2.314704433,
+        "Real wage index (1860 = 100)": 95.85883008,
+        "Year": 1490
+      },
+      {
+        "Population (millions)": 2.559872262,
+        "Real wage index (1860 = 100)": 91.06384084,
+        "Year": 1500
+      },
+      {
+        "Population (millions)": 2.80754294,
+        "Real wage index (1860 = 100)": 86.67787338,
+        "Year": 1510
+      },
+      {
+        "Population (millions)": 2.94110926,
+        "Real wage index (1860 = 100)": 80.81698842,
+        "Year": 1520
+      },
+      {
+        "Population (millions)": 3.019703022,
+        "Real wage index (1860 = 100)": 77.63351717,
+        "Year": 1530
+      },
+      {
+        "Population (millions)": 2.992557968,
+        "Real wage index (1860 = 100)": 71.46728913,
+        "Year": 1540
+      },
+      {
+        "Population (millions)": 3.241056598,
+        "Real wage index (1860 = 100)": 67.22523152,
+        "Year": 1550
+      },
+      {
+        "Population (millions)": 3.210390809,
+        "Real wage index (1860 = 100)": 70.03709085,
+        "Year": 1560
+      },
+      {
+        "Population (millions)": 3.500129637,
+        "Real wage index (1860 = 100)": 71.3662579,
+        "Year": 1570
+      },
+      {
+        "Population (millions)": 3.554059127,
+        "Real wage index (1860 = 100)": 71.87528355,
+        "Year": 1580
+      },
+      {
+        "Population (millions)": 4.16,
+        "Real wage index (1860 = 100)": 58.0370635,
+        "Year": 1590
+      },
+      {
+        "Population (millions)": 4.401069351,
+        "Real wage index (1860 = 100)": 61.67499865,
+        "Year": 1600
+      },
+      {
+        "Population (millions)": 4.733105818,
+        "Real wage index (1860 = 100)": 57.24005216,
+        "Year": 1610
+      },
+      {
+        "Population (millions)": 5.017557441,
+        "Real wage index (1860 = 100)": 67.11974615,
+        "Year": 1620
+      },
+      {
+        "Population (millions)": 5.208954258,
+        "Real wage index (1860 = 100)": 71.8366023,
+        "Year": 1630
+      },
+      {
+        "Population (millions)": 5.424672218,
+        "Real wage index (1860 = 100)": 70.28094718,
+        "Year": 1640
+      },
+      {
+        "Population (millions)": 5.612896712,
+        "Real wage index (1860 = 100)": 72.37110655,
+        "Year": 1650
+      },
+      {
+        "Population (millions)": 5.583288364,
+        "Real wage index (1860 = 100)": 87.35167008,
+        "Year": 1660
+      },
+      {
+        "Population (millions)": 5.455338006,
+        "Real wage index (1860 = 100)": 70.66032706,
+        "Year": 1670
+      },
+      {
+        "Population (millions)": 5.402465957,
+        "Real wage index (1860 = 100)": 75.31813999,
+        "Year": 1680
+      },
+      {
+        "Population (millions)": 5.386604342,
+        "Real wage index (1860 = 100)": 66.60507631,
+        "Year": 1690
+      },
+      {
+        "Population (millions)": 5.509557839,
+        "Real wage index (1860 = 100)": 75.53674848,
+        "Year": 1700
+      },
+      {
+        "Population (millions)": 5.691447273,
+        "Real wage index (1860 = 100)": 73.8996507,
+        "Year": 1710
+      },
+      {
+        "Population (millions)": 5.819404374,
+        "Real wage index (1860 = 100)": 73.82468676,
+        "Year": 1720
+      },
+      {
+        "Population (millions)": 5.725287167,
+        "Real wage index (1860 = 100)": 83.46655149,
+        "Year": 1730
+      },
+      {
+        "Population (millions)": 6.05205365,
+        "Real wage index (1860 = 100)": 90.84103196,
+        "Year": 1740
+      },
+      {
+        "Population (millions)": 6.2625,
+        "Real wage index (1860 = 100)": 85.93714665,
+        "Year": 1750
+      },
+      {
+        "Population (millions)": 6.657314901,
+        "Real wage index (1860 = 100)": 81.72263541,
+        "Year": 1760
+      },
+      {
+        "Population (millions)": 7.013234101,
+        "Real wage index (1860 = 100)": 74.07945546,
+        "Year": 1770
+      },
+      {
+        "Population (millions)": 7.591050233,
+        "Real wage index (1860 = 100)": 81.33720365,
+        "Year": 1780
+      },
+      {
+        "Population (millions)": 8.277065187,
+        "Real wage index (1860 = 100)": 73.27987069,
+        "Year": 1790
+      },
+      {
+        "Population (millions)": 9.094201424,
+        "Real wage index (1860 = 100)": 71.81792914,
+        "Year": 1800
+      },
+      {
+        "Population (millions)": 10.30856733,
+        "Real wage index (1860 = 100)": 76.14455691,
+        "Year": 1810
+      },
+      {
+        "Population (millions)": 11.98210374,
+        "Real wage index (1860 = 100)": 87.18713882,
+        "Year": 1820
+      },
+      {
+        "Population (millions)": 13.77317583,
+        "Real wage index (1860 = 100)": 91.80409158,
+        "Year": 1830
+      },
+      {
+        "Population (millions)": 15.63648196,
+        "Real wage index (1860 = 100)": 88.22515656,
+        "Year": 1840
+      },
+      {
+        "Population (millions)": 17.58961383,
+        "Real wage index (1860 = 100)": 94.97782523,
+        "Year": 1850
+      },
+      {
+        "Population (millions)": 19.72223596,
+        "Real wage index (1860 = 100)": 100.0,
+        "Year": 1860
+      }
+    ]
+  },
+  "height": 500,
+  "layer": [
+    {
+      "encoding": {
+        "size": {
+          "field": "Population (millions)",
+          "scale": {
+            "domainMax": 20,
+            "domainMin": 1
+          },
+          "type": "quantitative"
+        },
+        "x": {
+          "axis": {
+            "values": [
+              1280,
+              1300,
+              1320,
+              1340,
+              1360,
+              1380,
+              1400,
+              1420,
+              1440,
+              1460,
+              1480,
+              1500,
+              1520,
+              1540,
+              1560,
+              1580,
+              1600,
+              1620,
+              1640,
+              1660,
+              1680,
+              1700,
+              1720,
+              1740,
+              1760,
+              1780,
+              1800,
+              1820,
+              1840,
+              1860
+            ]
+          },
+          "field": "Year",
+          "type": "ordinal"
+        },
+        "y": {
+          "field": "Real wage index (1860 = 100)",
+          "scale": {
+            "domainMax": 120,
+            "domainMin": 40
+          },
+          "type": "quantitative"
+        }
+      },
+      "mark": "trail"
+    },
+    {
+      "encoding": {
+        "opacity": {
+          "value": 0
+        },
+        "tooltip": [
+          {
+            "field": "Year",
+            "type": "ordinal"
+          },
+          {
+            "field": "Real wage index (1860 = 100)",
+            "format": ".1f",
+            "title": "Real wage index",
+            "type": "quantitative"
+          },
+          {
+            "field": "Population (millions)",
+            "format": ".1f",
+            "type": "quantitative"
+          }
+        ],
+        "x": {
+          "axis": {
+            "values": [
+              1280,
+              1300,
+              1320,
+              1340,
+              1360,
+              1380,
+              1400,
+              1420,
+              1440,
+              1460,
+              1480,
+              1500,
+              1520,
+              1540,
+              1560,
+              1580,
+              1600,
+              1620,
+              1640,
+              1660,
+              1680,
+              1700,
+              1720,
+              1740,
+              1760,
+              1780,
+              1800,
+              1820,
+              1840,
+              1860
+            ]
+          },
+          "field": "Year",
+          "type": "ordinal"
+        }
+      },
+      "mark": "point",
+      "selection": {
+        "selector001": {
+          "clear": "mouseout",
+          "empty": "none",
+          "fields": [
+            "Year"
+          ],
+          "nearest": true,
+          "on": "mouseover",
+          "type": "single"
+        }
+      }
+    },
+    {
+      "data": {
+        "name": "data-41306ac50674a207a416db7ac234d06d"
+      },
+      "encoding": {
+        "x": {
+          "axis": {
+            "values": [
+              1280,
+              1300,
+              1320,
+              1340,
+              1360,
+              1380,
+              1400,
+              1420,
+              1440,
+              1460,
+              1480,
+              1500,
+              1520,
+              1540,
+              1560,
+              1580,
+              1600,
+              1620,
+              1640,
+              1660,
+              1680,
+              1700,
+              1720,
+              1740,
+              1760,
+              1780,
+              1800,
+              1820,
+              1840,
+              1860
+            ]
+          },
+          "field": "Year",
+          "type": "ordinal"
+        }
+      },
+      "mark": {
+        "color": "gray",
+        "type": "rule"
+      },
+      "transform": [
+        {
+          "filter": {
+            "selection": "selector001"
+          }
+        }
+      ]
+    }
+  ],
+  "width": "container"
+};
+        const options = {"renderer": "canvas", "actions": false};
+        buildChart(spec, options);
+      </script>
+      <div id='custom-tooltip-element'></div>
+
+
+
+  </body>
+
+</html>

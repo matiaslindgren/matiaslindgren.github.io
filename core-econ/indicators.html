@@ -1,0 +1,2012 @@
+<!DOCTYPE HTML>
+<html lang="en">
+
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Economic indicators</title>
+
+      <script src="https://cdn.jsdelivr.net/npm/vega@5" crossorigin="anonymous">
+      </script>
+      <script src="https://cdn.jsdelivr.net/npm/vega-lite@4" crossorigin="anonymous">
+      </script>
+      <script src="https://cdn.jsdelivr.net/npm/vega-embed@6" crossorigin="anonymous">
+      </script>
+
+
+
+    <style>
+body {
+  font-family: Georgia, serif;
+  padding: 1rem;
+}
+
+a {
+  text-decoration: none;
+}
+
+a:hover {
+  text-decoration: underline;
+}
+
+#vega-container {
+  max-width: 70em;
+  width: 100%;
+}
+
+form.vega-bindings .vega-bind label {
+  display: grid;
+  grid-template-columns: 6em 14em 6em;
+}
+
+form.vega-bindings .vega-bind label span {
+  margin-left: 0.5em;
+}
+
+dl {
+  padding-top: 1rem;
+  padding-bottom: 1rem;
+  max-width: 800px;
+}
+
+dl,
+dd {
+  font-size: 0.9rem;
+}
+
+dt {
+  font-weight: bold;
+}
+
+dd {
+  margin-bottom: 1rem;
+}
+
+ul.data-source-url-list {
+  padding: 0;
+  list-style: none;
+}
+
+table {
+  border-collapse: collapse;
+  width: 100%;
+  max-width: 800px;
+}
+
+table td {
+  vertical-align: baseline;
+}
+
+table tr {
+  border-bottom: 1px solid lightgray;
+}
+
+table.tooltip {
+  border-collapse: initial;
+  width: initial;
+  max-width: initial;
+}
+
+table.tooltip tbody tr td {
+  vertical-align: middle;
+}
+
+#custom-tooltip-element.visible {
+  visibility: visible;
+}
+
+#custom-tooltip-element {
+  visibility: hidden;
+  padding: 0.5rem;
+  position: fixed;
+  z-index: 1000;
+  font-size: 0.8rem;
+  border-radius: 3px;
+  box-shadow: 2px 2px 4px rgba(0, 0, 0, 0.1);
+  background-color: rgba(255, 255, 255, 0.95);
+  border: 1px solid #d9d9d9;
+  color: black;
+}
+
+dd.module-description ul {
+  padding-left: 0px;
+  list-style-position: inside;
+}    </style>
+
+
+  </head>
+
+  <body>
+    <a href="index.html">go back</a>
+    <h1>Economic indicators</h1>
+    <dl>
+      <dt>Updated at</dt>
+      <dd>29. May 2022</dd>
+        <dt>Description</dt>
+        <dd class="module-description">
+              Comparing Finland, Sweden, and Norway on five annual economic indicators by Organisation for Economic Co-operation and Development (OECD).
+        </dd>
+        <dt>Data source</dt>
+        <dd>OECD Data</dd>
+        <dt>Data downloaded from</dt>
+        <dd>
+          <ul class='data-source-url-list'>
+            <li><a href="https://data.oecd.org/gdp/real-gdp-forecast.htm
+">OECD (2022), Real GDP forecast (indicator). doi: 10.1787/1f84150b-en (Accessed on 28 May 2022)
+</a></li>
+            <li><a href="https://data.oecd.org/hha/household-disposable-income.htm
+">OECD (2022), Household disposable income (indicator). doi: 10.1787/dd50eddd-en (Accessed on 28 May 2022)
+</a></li>
+            <li><a href="https://data.oecd.org/unemp/unemployment-rate.htm
+">OECD (2022), Unemployment rate (indicator). doi: 10.1787/52570002-en (Accessed on 28 May 2022)
+</a></li>
+            <li><a href="https://data.oecd.org/price/inflation-cpi.htm
+">OECD (2022), Inflation (CPI) (indicator). doi: 10.1787/eee82e6e-en (Accessed on 28 May 2022)
+</a></li>
+            <li><a href="https://data.oecd.org/interest/long-term-interest-rates.htm
+">OECD (2022), Long-term interest rates (indicator). doi: 10.1787/662d712c-en (Accessed on 28 May 2022)
+</a></li>
+            <li><a href="https://data.oecd.org/interest/short-term-interest-rates.htm
+">OECD (2022), Short-term interest rates (indicator). doi: 10.1787/2cc37d77-en (Accessed on 28 May 2022)
+</a></li>
+          </ul>
+        </dd>
+    </dl>
+
+
+      <div id="vega-container"></div>
+      <script type="text/javascript">
+function renderTooltip(event, value, config) {
+  const tooltipContainer = document.getElementById("custom-tooltip-element");
+  tooltipContainer.classList.add("visible");
+  if (!value) {
+    tooltipContainer.classList.remove("visible");
+    return;
+  }
+  tooltipContainer.setAttribute(
+    "style",
+    `top: ${event.clientY + 15}px; left: ${event.clientX + 15}px`
+  );
+  const colorScheme = vega.scheme(findScheme(spec));
+  let { datatype, title, ...values } = value;
+  values = Array.from(Object.keys(values), (key, i) => ({
+    key: key,
+    val: values[key],
+    color: colorScheme[i],
+  }));
+  values.sort((a, b) => parseFloat(b.val) - parseFloat(a.val));
+  const fmt = getFormatter(config.formatter[datatype]);
+  tooltipContainer.innerHTML = sortedTable(title, values, fmt).outerHTML;
+}
+
+function getFormatter({ name, digits }) {
+  const currency = (c) =>
+    Intl.NumberFormat("en-US", {
+      maximumSignificantDigits: digits,
+      style: "currency",
+      currency: c,
+    });
+  const unit = (u) =>
+    Intl.NumberFormat("en-US", { maximumSignificantDigits: digits, style: "unit", unit: u });
+  switch (name) {
+    case "hour":
+      return unit("hour");
+    case "USD":
+    default:
+      return currency("USD");
+  }
+}
+
+function svgCircle(color) {
+  return [
+    `<svg style="display: table-cell; height: 1em; width: 1em; fill: ${color};" viewBox="0 0 2 2" xmlns="http://www.w3.org/2000/svg">`,
+    `<circle cx="1.1" cy="1.1" r="0.8"/>`,
+    `</svg>`,
+  ].join("\n");
+}
+
+const element = (tag) => document.createElement(tag);
+
+function findScheme(spec) {
+  for (const layer of spec.hconcat || spec.vconcat || spec.layer) {
+    const scheme =
+      layer &&
+      layer.encoding &&
+      layer.encoding.color &&
+      layer.encoding.color.scale &&
+      layer.encoding.color.scale.scheme;
+    if (scheme) {
+      return scheme;
+    }
+  }
+  return "tableau10";
+}
+
+function sortedTable(title, values, fmt) {
+  const container = element("div");
+  const header = element("h4");
+  header.setAttribute("style", "margin: 0 auto 0.5em;");
+  header.innerText = title;
+  container.appendChild(header);
+  const tbody = element("tbody");
+  for (let row of values) {
+    const tr = element("tr");
+    tr.innerHTML = [
+      `<td>${svgCircle(row.color)}</td>`,
+      `<td>${row.key}</td>`,
+      `<td>${fmt.format(row.val)}</td>`,
+    ].join("\n");
+    tbody.appendChild(tr);
+  }
+  const table = element("table");
+  table.classList.add("tooltip");
+  table.appendChild(tbody);
+  container.appendChild(table);
+  return container;
+}
+
+let vegaView;
+
+function buildChart(spec, options) {
+  vegaEmbed("#vega-container", spec, options)
+    .then((result) => {
+      vegaView = result.view;
+      const meta = spec.usermeta;
+      if (!meta) {
+        return;
+      }
+      if (meta.inputsOnTop) {
+        const bindings = document.querySelector("#vega-container.vega-embed form.vega-bindings");
+        const canvas = document.querySelector("#vega-container.vega-embed canvas");
+        canvas.parentNode.insertBefore(bindings, canvas);
+      }
+      if (meta.customTooltip) {
+        result.view.tooltip((handler, event, item, value) =>
+          renderTooltip(event, value, meta.customTooltip)
+        );
+      }
+      return result.view.runAsync();
+    })
+    .catch(console.error);
+}        const spec = {
+  "$schema": "https://vega.github.io/schema/vega-lite/v4.17.0.json",
+  "config": {
+    "axis": {
+      "labelFont": "Georgia",
+      "labelFontSize": 14,
+      "titleFont": "Georgia",
+      "titleFontSize": 16
+    },
+    "header": {
+      "labelFont": "Georgia",
+      "labelFontSize": 14,
+      "titleFont": "Georgia",
+      "titleFontSize": 16
+    },
+    "legend": {
+      "labelFont": "Georgia",
+      "labelFontSize": 14,
+      "titleFont": "Georgia",
+      "titleFontSize": 16
+    },
+    "title": {
+      "font": "Georgia",
+      "fontSize": 16
+    },
+    "view": {
+      "continuousHeight": 300,
+      "continuousWidth": 400
+    }
+  },
+  "data": {
+    "name": "data-377759c8a7f35789625dc797003b44a3"
+  },
+  "datasets": {
+    "data-377759c8a7f35789625dc797003b44a3": [
+      {
+        "CPI": 0.06592911,
+        "HHDI": 0.10026487191569755,
+        "HUR": 0.03108333,
+        "LTINT": 0.1208583,
+        "REALGDPFORECAST": 0.054173731892834705,
+        "STINT": 0.1255667,
+        "country": "Finland",
+        "year": "1989-01-01T00:00:00"
+      },
+      {
+        "CPI": 0.061495610000000006,
+        "HHDI": 0.0665536271981455,
+        "HUR": 0.03166667,
+        "LTINT": 0.1321,
+        "REALGDPFORECAST": 0.0014246847310565999,
+        "STINT": 0.1399667,
+        "country": "Finland",
+        "year": "1990-01-01T00:00:00"
+      },
+      {
+        "CPI": 0.043102150000000006,
+        "HHDI": 0.0439343632811533,
+        "HUR": 0.06608333,
+        "LTINT": 0.1171167,
+        "REALGDPFORECAST": -0.0588582397270013,
+        "STINT": 0.13079169999999998,
+        "country": "Finland",
+        "year": "1991-01-01T00:00:00"
+      },
+      {
+        "CPI": 0.02919323,
+        "HHDI": -0.004746239902690519,
+        "HUR": 0.1170833,
+        "LTINT": 0.119725,
+        "REALGDPFORECAST": -0.0329427939054698,
+        "STINT": 0.13251670000000002,
+        "country": "Finland",
+        "year": "1992-01-01T00:00:00"
+      },
+      {
+        "CPI": 0.02190654,
+        "HHDI": -0.03606882019769919,
+        "HUR": 0.1634167,
+        "LTINT": 0.08825,
+        "REALGDPFORECAST": -0.006631776284955479,
+        "STINT": 0.07773334,
+        "country": "Finland",
+        "year": "1993-01-01T00:00:00"
+      },
+      {
+        "CPI": 0.010885579999999999,
+        "HHDI": -0.010150986676525364,
+        "HUR": 0.1658333,
+        "LTINT": 0.09036667,
+        "REALGDPFORECAST": 0.039608086749337496,
+        "STINT": 0.0535,
+        "country": "Finland",
+        "year": "1994-01-01T00:00:00"
+      },
+      {
+        "CPI": 0.007912362,
+        "HHDI": 0.08896477772278555,
+        "HUR": 0.154,
+        "LTINT": 0.08791667,
+        "REALGDPFORECAST": 0.042221348178627605,
+        "STINT": 0.0575,
+        "country": "Finland",
+        "year": "1995-01-01T00:00:00"
+      },
+      {
+        "CPI": 0.0062919809999999994,
+        "HHDI": 0.017331318670012807,
+        "HUR": 0.1456667,
+        "LTINT": 0.07076666999999999,
+        "REALGDPFORECAST": 0.036700776544016295,
+        "STINT": 0.03625,
+        "country": "Finland",
+        "year": "1996-01-01T00:00:00"
+      },
+      {
+        "CPI": 0.011925570000000002,
+        "HHDI": 0.06796224422490749,
+        "HUR": 0.1264167,
+        "LTINT": 0.059574999999999996,
+        "REALGDPFORECAST": 0.0628574628798645,
+        "STINT": 0.03231667,
+        "country": "Finland",
+        "year": "1997-01-01T00:00:00"
+      },
+      {
+        "CPI": 0.013994709999999999,
+        "HHDI": 0.048608480991465974,
+        "HUR": 0.1135833,
+        "LTINT": 0.047874999999999994,
+        "REALGDPFORECAST": 0.0545427001962773,
+        "STINT": 0.03568333,
+        "country": "Finland",
+        "year": "1998-01-01T00:00:00"
+      },
+      {
+        "CPI": 0.01162237,
+        "HHDI": 0.0682240064342663,
+        "HUR": 0.1021667,
+        "LTINT": 0.047225,
+        "REALGDPFORECAST": 0.0438082032640672,
+        "STINT": 0.029634999999999998,
+        "country": "Finland",
+        "year": "1999-01-01T00:00:00"
+      },
+      {
+        "CPI": 0.03042096,
+        "HHDI": 0.0943723850816649,
+        "HUR": 0.09783334,
+        "LTINT": 0.054825,
+        "REALGDPFORECAST": 0.0575690667241101,
+        "STINT": 0.04391767,
+        "country": "Finland",
+        "year": "2000-01-01T00:00:00"
+      },
+      {
+        "CPI": 0.02578441,
+        "HHDI": 0.01665549351884965,
+        "HUR": 0.09125,
+        "LTINT": 0.05043334,
+        "REALGDPFORECAST": 0.0260945332744905,
+        "STINT": 0.04261783,
+        "country": "Finland",
+        "year": "2001-01-01T00:00:00"
+      },
+      {
+        "CPI": 0.01571221,
+        "HHDI": 0.07946312970222014,
+        "HUR": 0.09075,
+        "LTINT": 0.04980834,
+        "REALGDPFORECAST": 0.0170605555984428,
+        "STINT": 0.03318592,
+        "country": "Finland",
+        "year": "2002-01-01T00:00:00"
+      },
+      {
+        "CPI": 0.008774385,
+        "HHDI": 0.020582224353363765,
+        "HUR": 0.09008333,
+        "LTINT": 0.04135,
+        "REALGDPFORECAST": 0.0200381679389313,
+        "STINT": 0.023334670000000002,
+        "country": "Finland",
+        "year": "2003-01-01T00:00:00"
+      },
+      {
+        "CPI": 0.001871234,
+        "HHDI": 0.07836157215477213,
+        "HUR": 0.08825,
+        "LTINT": 0.041091670000000004,
+        "REALGDPFORECAST": 0.039921549451484004,
+        "STINT": 0.02106325,
+        "country": "Finland",
+        "year": "2004-01-01T00:00:00"
+      },
+      {
+        "CPI": 0.0062387119999999996,
+        "HHDI": 0.004288458432848641,
+        "HUR": 0.084,
+        "LTINT": 0.03350833,
+        "REALGDPFORECAST": 0.0277835986813524,
+        "STINT": 0.021846749999999998,
+        "country": "Finland",
+        "year": "2005-01-01T00:00:00"
+      },
+      {
+        "CPI": 0.01566667,
+        "HHDI": 0.0616908815921573,
+        "HUR": 0.07716667,
+        "LTINT": 0.037825000000000004,
+        "REALGDPFORECAST": 0.040290216866990594,
+        "STINT": 0.03079225,
+        "country": "Finland",
+        "year": "2006-01-01T00:00:00"
+      },
+      {
+        "CPI": 0.02510666,
+        "HHDI": 0.09458521392192809,
+        "HUR": 0.06866667,
+        "LTINT": 0.04293334,
+        "REALGDPFORECAST": 0.0529893447677504,
+        "STINT": 0.04277608,
+        "country": "Finland",
+        "year": "2007-01-01T00:00:00"
+      },
+      {
+        "CPI": 0.040659520000000005,
+        "HHDI": 0.0707783633322503,
+        "HUR": 0.06366667,
+        "LTINT": 0.0429,
+        "REALGDPFORECAST": 0.00785825184539536,
+        "STINT": 0.04634233,
+        "country": "Finland",
+        "year": "2008-01-01T00:00:00"
+      },
+      {
+        "CPI": -1.2199999999999999e-16,
+        "HHDI": 0.01338626462138115,
+        "HUR": 0.08366667,
+        "LTINT": 0.03738333,
+        "REALGDPFORECAST": -0.080744474323113,
+        "STINT": 0.01228358,
+        "country": "Finland",
+        "year": "2009-01-01T00:00:00"
+      },
+      {
+        "CPI": 0.011841349999999999,
+        "HHDI": 0.049270440134000726,
+        "HUR": 0.08541667,
+        "LTINT": 0.03010833,
+        "REALGDPFORECAST": 0.0318497866064297,
+        "STINT": 0.008109499999999999,
+        "country": "Finland",
+        "year": "2010-01-01T00:00:00"
+      },
+      {
+        "CPI": 0.034168090000000005,
+        "HHDI": 0.03136373187019892,
+        "HUR": 0.07966667,
+        "LTINT": 0.03005833,
+        "REALGDPFORECAST": 0.025481639068680798,
+        "STINT": 0.013906,
+        "country": "Finland",
+        "year": "2011-01-01T00:00:00"
+      },
+      {
+        "CPI": 0.028083320000000002,
+        "HHDI": 0.031047787177633568,
+        "HUR": 0.07808333,
+        "LTINT": 0.01883333,
+        "REALGDPFORECAST": -0.0139801527212444,
+        "STINT": 0.005731834,
+        "country": "Finland",
+        "year": "2012-01-01T00:00:00"
+      },
+      {
+        "CPI": 0.01478288,
+        "HHDI": 0.024485159224499897,
+        "HUR": 0.083,
+        "LTINT": 0.01860833,
+        "REALGDPFORECAST": -0.00901235147701122,
+        "STINT": 0.002206667,
+        "country": "Finland",
+        "year": "2013-01-01T00:00:00"
+      },
+      {
+        "CPI": 0.010412,
+        "HHDI": 0.005649208491076196,
+        "HUR": 0.0875,
+        "LTINT": 0.01448333,
+        "REALGDPFORECAST": -0.00365857704100734,
+        "STINT": 0.002099333,
+        "country": "Finland",
+        "year": "2014-01-01T00:00:00"
+      },
+      {
+        "CPI": -0.00207932,
+        "HHDI": 0.019360435142458554,
+        "HUR": 0.09458333,
+        "LTINT": 0.007233334,
+        "REALGDPFORECAST": 0.005450939169231211,
+        "STINT": -0.0001936667,
+        "country": "Finland",
+        "year": "2015-01-01T00:00:00"
+      },
+      {
+        "CPI": 0.0035668450000000003,
+        "HHDI": 0.04616340929476759,
+        "HUR": 0.08916667,
+        "LTINT": 0.00365,
+        "REALGDPFORECAST": 0.0281145776663434,
+        "STINT": -0.002636917,
+        "country": "Finland",
+        "year": "2016-01-01T00:00:00"
+      },
+      {
+        "CPI": 0.00754015,
+        "HHDI": 0.0342049140433387,
+        "HUR": 0.08766666000000001,
+        "LTINT": 0.005466667,
+        "REALGDPFORECAST": 0.0319379003165722,
+        "STINT": -0.0032905,
+        "country": "Finland",
+        "year": "2017-01-01T00:00:00"
+      },
+      {
+        "CPI": 0.01083821,
+        "HHDI": 0.03919195763450278,
+        "HUR": 0.07433333,
+        "LTINT": 0.0066166670000000006,
+        "REALGDPFORECAST": 0.0114104044696324,
+        "STINT": -0.003220917,
+        "country": "Finland",
+        "year": "2018-01-01T00:00:00"
+      },
+      {
+        "CPI": 0.01024094,
+        "HHDI": 0.005144703722126387,
+        "HUR": 0.06741667,
+        "LTINT": 0.0007000000000000001,
+        "REALGDPFORECAST": 0.0134242686088137,
+        "STINT": -0.003563333,
+        "country": "Finland",
+        "year": "2019-01-01T00:00:00"
+      },
+      {
+        "CPI": 0.002905546,
+        "HHDI": 0.025848183964665594,
+        "HUR": 0.07725,
+        "LTINT": -0.002191667,
+        "REALGDPFORECAST": -0.0286854045494686,
+        "STINT": -0.0042515,
+        "country": "Finland",
+        "year": "2020-01-01T00:00:00"
+      },
+      {
+        "CPI": 0.02194574,
+        "HHDI": null,
+        "HUR": 0.07675,
+        "LTINT": -0.0009521277999999999,
+        "REALGDPFORECAST": 0.0352986173415901,
+        "STINT": -0.005487667000000001,
+        "country": "Finland",
+        "year": "2021-01-01T00:00:00"
+      },
+      {
+        "CPI": 0.04546144,
+        "HHDI": 0.05537034300657773,
+        "HUR": 0.04883333,
+        "LTINT": 0.1082583,
+        "REALGDPFORECAST": 0.0103824686287524,
+        "STINT": 0.1137917,
+        "country": "Norway",
+        "year": "1989-01-01T00:00:00"
+      },
+      {
+        "CPI": 0.041310330000000006,
+        "HHDI": 0.05843011613557292,
+        "HUR": 0.05216667,
+        "LTINT": 0.10679999999999999,
+        "REALGDPFORECAST": 0.0193242651929561,
+        "STINT": 0.1153917,
+        "country": "Norway",
+        "year": "1990-01-01T00:00:00"
+      },
+      {
+        "CPI": 0.03438196,
+        "HHDI": 0.06369654633571709,
+        "HUR": 0.0545,
+        "LTINT": 0.09996667000000001,
+        "REALGDPFORECAST": 0.0308473672743051,
+        "STINT": 0.1056417,
+        "country": "Norway",
+        "year": "1991-01-01T00:00:00"
+      },
+      {
+        "CPI": 0.023280850000000002,
+        "HHDI": 0.06245086502861863,
+        "HUR": 0.05925,
+        "LTINT": 0.09606666999999999,
+        "REALGDPFORECAST": 0.0357438247340008,
+        "STINT": 0.118325,
+        "country": "Norway",
+        "year": "1992-01-01T00:00:00"
+      },
+      {
+        "CPI": 0.02288269,
+        "HHDI": 0.0559244985736389,
+        "HUR": 0.059500000000000004,
+        "LTINT": 0.06880833,
+        "REALGDPFORECAST": 0.028453574002028,
+        "STINT": 0.07264999999999999,
+        "country": "Norway",
+        "year": "1993-01-01T00:00:00"
+      },
+      {
+        "CPI": 0.01375675,
+        "HHDI": 0.037655927841456105,
+        "HUR": 0.05408333,
+        "LTINT": 0.07435833,
+        "REALGDPFORECAST": 0.0505538590916297,
+        "STINT": 0.05850833,
+        "country": "Norway",
+        "year": "1994-01-01T00:00:00"
+      },
+      {
+        "CPI": 0.02460368,
+        "HHDI": 0.04211605679871777,
+        "HUR": 0.04933333,
+        "LTINT": 0.07424167,
+        "REALGDPFORECAST": 0.0415550841777984,
+        "STINT": 0.05478333,
+        "country": "Norway",
+        "year": "1995-01-01T00:00:00"
+      },
+      {
+        "CPI": 0.01262532,
+        "HHDI": 0.06365681431719272,
+        "HUR": 0.0475,
+        "LTINT": 0.06773334,
+        "REALGDPFORECAST": 0.0502797921492609,
+        "STINT": 0.048933330000000004,
+        "country": "Norway",
+        "year": "1996-01-01T00:00:00"
+      },
+      {
+        "CPI": 0.02566923,
+        "HHDI": 0.042916530945912745,
+        "HUR": 0.03916667,
+        "LTINT": 0.058883330000000005,
+        "REALGDPFORECAST": 0.0528455458711347,
+        "STINT": 0.037325,
+        "country": "Norway",
+        "year": "1997-01-01T00:00:00"
+      },
+      {
+        "CPI": 0.022524130000000003,
+        "HHDI": 0.05632381782127638,
+        "HUR": 0.03091667,
+        "LTINT": 0.054000000000000006,
+        "REALGDPFORECAST": 0.0262446738510766,
+        "STINT": 0.05785,
+        "country": "Norway",
+        "year": "1998-01-01T00:00:00"
+      },
+      {
+        "CPI": 0.02365967,
+        "HHDI": 0.02807466225523325,
+        "HUR": 0.03033333,
+        "LTINT": 0.054974999999999996,
+        "REALGDPFORECAST": 0.020128503941004697,
+        "STINT": 0.06538333,
+        "country": "Norway",
+        "year": "1999-01-01T00:00:00"
+      },
+      {
+        "CPI": 0.03085506,
+        "HHDI": 0.08998738921721317,
+        "HUR": 0.03241667,
+        "LTINT": 0.06218333,
+        "REALGDPFORECAST": 0.0320498742764914,
+        "STINT": 0.06745833,
+        "country": "Norway",
+        "year": "2000-01-01T00:00:00"
+      },
+      {
+        "CPI": 0.03004197,
+        "HHDI": 0.014057433733662306,
+        "HUR": 0.034083329999999995,
+        "LTINT": 0.06236667,
+        "REALGDPFORECAST": 0.020747870941305,
+        "STINT": 0.07226666,
+        "country": "Norway",
+        "year": "2001-01-01T00:00:00"
+      },
+      {
+        "CPI": 0.012867249999999998,
+        "HHDI": 0.12589149524904486,
+        "HUR": 0.03666667,
+        "LTINT": 0.06384167,
+        "REALGDPFORECAST": 0.0144628564196782,
+        "STINT": 0.069075,
+        "country": "Norway",
+        "year": "2002-01-01T00:00:00"
+      },
+      {
+        "CPI": 0.02487826,
+        "HHDI": 0.03007463920511344,
+        "HUR": 0.042083329999999995,
+        "LTINT": 0.05045,
+        "REALGDPFORECAST": 0.009100725926738839,
+        "STINT": 0.040983330000000005,
+        "country": "Norway",
+        "year": "2003-01-01T00:00:00"
+      },
+      {
+        "CPI": 0.0045449850000000005,
+        "HHDI": 0.05678746390665346,
+        "HUR": 0.04275,
+        "LTINT": 0.04368333,
+        "REALGDPFORECAST": 0.0396947456327749,
+        "STINT": 0.02006667,
+        "country": "Norway",
+        "year": "2004-01-01T00:00:00"
+      },
+      {
+        "CPI": 0.015321340000000001,
+        "HHDI": 0.05749875351305489,
+        "HUR": 0.045250000000000005,
+        "LTINT": 0.037458330000000005,
+        "REALGDPFORECAST": 0.0262538545138762,
+        "STINT": 0.022116669999999998,
+        "country": "Norway",
+        "year": "2005-01-01T00:00:00"
+      },
+      {
+        "CPI": 0.023293499999999998,
+        "HHDI": -0.016358859878580545,
+        "HUR": 0.034249999999999996,
+        "LTINT": 0.04076667,
+        "REALGDPFORECAST": 0.0239982812767594,
+        "STINT": 0.03099167,
+        "country": "Norway",
+        "year": "2006-01-01T00:00:00"
+      },
+      {
+        "CPI": 0.007125891,
+        "HHDI": 0.08000361843488468,
+        "HUR": 0.02558333,
+        "LTINT": 0.04774167,
+        "REALGDPFORECAST": 0.0299427983294744,
+        "STINT": 0.049574999999999994,
+        "country": "Norway",
+        "year": "2007-01-01T00:00:00"
+      },
+      {
+        "CPI": 0.03753931,
+        "HHDI": 0.04563616597975928,
+        "HUR": 0.02725,
+        "LTINT": 0.04458333,
+        "REALGDPFORECAST": 0.00476370755005755,
+        "STINT": 0.06218333,
+        "country": "Norway",
+        "year": "2008-01-01T00:00:00"
+      },
+      {
+        "CPI": 0.021973859999999998,
+        "HHDI": 0.023909122632227664,
+        "HUR": 0.03283333,
+        "LTINT": 0.039983330000000004,
+        "REALGDPFORECAST": -0.0172702063518214,
+        "STINT": 0.02463333,
+        "country": "Norway",
+        "year": "2009-01-01T00:00:00"
+      },
+      {
+        "CPI": 0.02418906,
+        "HHDI": 0.026041690407677454,
+        "HUR": 0.03733333,
+        "LTINT": 0.03528333,
+        "REALGDPFORECAST": 0.0070181948875772,
+        "STINT": 0.025016669999999998,
+        "country": "Norway",
+        "year": "2010-01-01T00:00:00"
+      },
+      {
+        "CPI": 0.012849520000000001,
+        "HHDI": 0.03236460140245656,
+        "HUR": 0.034083329999999995,
+        "LTINT": 0.031349999999999996,
+        "REALGDPFORECAST": 0.00981420398907417,
+        "STINT": 0.02871667,
+        "country": "Norway",
+        "year": "2011-01-01T00:00:00"
+      },
+      {
+        "CPI": 0.006968641,
+        "HHDI": 0.044483813277162776,
+        "HUR": 0.033,
+        "LTINT": 0.02101667,
+        "REALGDPFORECAST": 0.027031070371821203,
+        "STINT": 0.02235,
+        "country": "Norway",
+        "year": "2012-01-01T00:00:00"
+      },
+      {
+        "CPI": 0.021204860000000002,
+        "HHDI": 0.05925108047196215,
+        "HUR": 0.03758333,
+        "LTINT": 0.025775000000000003,
+        "REALGDPFORECAST": 0.0103407503022804,
+        "STINT": 0.01755068,
+        "country": "Norway",
+        "year": "2013-01-01T00:00:00"
+      },
+      {
+        "CPI": 0.02041703,
+        "HHDI": 0.020146396715649884,
+        "HUR": 0.03633333,
+        "LTINT": 0.025150000000000002,
+        "REALGDPFORECAST": 0.019695153648206,
+        "STINT": 0.016990400000000003,
+        "country": "Norway",
+        "year": "2014-01-01T00:00:00"
+      },
+      {
+        "CPI": 0.021711369999999997,
+        "HHDI": -0.0008182819016300247,
+        "HUR": 0.045,
+        "LTINT": 0.01565,
+        "REALGDPFORECAST": 0.0196716903056353,
+        "STINT": 0.01290675,
+        "country": "Norway",
+        "year": "2015-01-01T00:00:00"
+      },
+      {
+        "CPI": 0.0355,
+        "HHDI": 0.014138987043676998,
+        "HUR": 0.04758333000000001,
+        "LTINT": 0.01331667,
+        "REALGDPFORECAST": 0.010715479955521402,
+        "STINT": 0.01066667,
+        "country": "Norway",
+        "year": "2016-01-01T00:00:00"
+      },
+      {
+        "CPI": 0.01875101,
+        "HHDI": 0.062061059752348546,
+        "HUR": 0.041916669999999996,
+        "LTINT": 0.016375,
+        "REALGDPFORECAST": 0.0232320992609139,
+        "STINT": 0.0089,
+        "country": "Norway",
+        "year": "2017-01-01T00:00:00"
+      },
+      {
+        "CPI": 0.02764831,
+        "HHDI": 0.03134827363226367,
+        "HUR": 0.03875,
+        "LTINT": 0.01879167,
+        "REALGDPFORECAST": 0.0111887879985117,
+        "STINT": 0.01066667,
+        "country": "Norway",
+        "year": "2018-01-01T00:00:00"
+      },
+      {
+        "CPI": 0.0216773,
+        "HHDI": -0.009579595014446052,
+        "HUR": 0.037000000000000005,
+        "LTINT": 0.01494167,
+        "REALGDPFORECAST": 0.00745807869941004,
+        "STINT": 0.015525,
+        "country": "Norway",
+        "year": "2019-01-01T00:00:00"
+      },
+      {
+        "CPI": 0.012865850000000002,
+        "HHDI": 0.014881406111628914,
+        "HUR": 0.046,
+        "LTINT": 0.008175,
+        "REALGDPFORECAST": -0.00717163315451902,
+        "STINT": 0.006991667,
+        "country": "Norway",
+        "year": "2020-01-01T00:00:00"
+      },
+      {
+        "CPI": 0.03483881,
+        "HHDI": null,
+        "HUR": 0.042916670000000004,
+        "LTINT": 0.014025000000000001,
+        "REALGDPFORECAST": 0.041020774783598404,
+        "STINT": 0.005041667,
+        "country": "Norway",
+        "year": "2021-01-01T00:00:00"
+      },
+      {
+        "CPI": 0.06443276,
+        "HHDI": 0.06925030080945671,
+        "HUR": 0.01558333,
+        "LTINT": 0.1118,
+        "REALGDPFORECAST": 0.0265480691001996,
+        "STINT": 0.11499169999999999,
+        "country": "Sweden",
+        "year": "1989-01-01T00:00:00"
+      },
+      {
+        "CPI": 0.10366550000000001,
+        "HHDI": 0.06813324210814531,
+        "HUR": 0.01716667,
+        "LTINT": 0.1315917,
+        "REALGDPFORECAST": 0.007546747525040181,
+        "STINT": 0.136675,
+        "country": "Sweden",
+        "year": "1990-01-01T00:00:00"
+      },
+      {
+        "CPI": 0.09444628,
+        "HHDI": 0.06190826331195143,
+        "HUR": 0.031,
+        "LTINT": 0.1069083,
+        "REALGDPFORECAST": -0.0114597486219251,
+        "STINT": 0.1159333,
+        "country": "Sweden",
+        "year": "1991-01-01T00:00:00"
+      },
+      {
+        "CPI": 0.023743669999999998,
+        "HHDI": 0.049673338664051325,
+        "HUR": 0.05558333,
+        "LTINT": 0.1001667,
+        "REALGDPFORECAST": -0.011585927379531999,
+        "STINT": 0.1285833,
+        "country": "Sweden",
+        "year": "1992-01-01T00:00:00"
+      },
+      {
+        "CPI": 0.04728173,
+        "HHDI": -0.04262199867958272,
+        "HUR": 0.09050000000000001,
+        "LTINT": 0.08539166,
+        "REALGDPFORECAST": -0.02065616383749,
+        "STINT": 0.08351665999999999,
+        "country": "Sweden",
+        "year": "1993-01-01T00:00:00"
+      },
+      {
+        "CPI": 0.02158138,
+        "HHDI": 0.00988429822337733,
+        "HUR": 0.09358333999999999,
+        "LTINT": 0.09494999999999999,
+        "REALGDPFORECAST": 0.037969715241356596,
+        "STINT": 0.07400833000000001,
+        "country": "Sweden",
+        "year": "1994-01-01T00:00:00"
+      },
+      {
+        "CPI": 0.02455149,
+        "HHDI": 0.021047031449807463,
+        "HUR": 0.08800000000000001,
+        "LTINT": 0.10244170000000001,
+        "REALGDPFORECAST": 0.041523951488713406,
+        "STINT": 0.08745832999999999,
+        "country": "Sweden",
+        "year": "1995-01-01T00:00:00"
+      },
+      {
+        "CPI": 0.0053313200000000005,
+        "HHDI": 0.020841208333613803,
+        "HUR": 0.09558333,
+        "LTINT": 0.08026667,
+        "REALGDPFORECAST": 0.0159133561343506,
+        "STINT": 0.0579,
+        "country": "Sweden",
+        "year": "1996-01-01T00:00:00"
+      },
+      {
+        "CPI": 0.006584103,
+        "HHDI": 0.003123865997646469,
+        "HUR": 0.09891666,
+        "LTINT": 0.06614167,
+        "REALGDPFORECAST": 0.0326288838668354,
+        "STINT": 0.041075,
+        "country": "Sweden",
+        "year": "1997-01-01T00:00:00"
+      },
+      {
+        "CPI": -0.002671327,
+        "HHDI": 0.03025646444003849,
+        "HUR": 0.08199999999999999,
+        "LTINT": 0.04989167,
+        "REALGDPFORECAST": 0.042241521133467,
+        "STINT": 0.041875,
+        "country": "Sweden",
+        "year": "1998-01-01T00:00:00"
+      },
+      {
+        "CPI": 0.004621758,
+        "HHDI": 0.07724404721395817,
+        "HUR": 0.06733333,
+        "LTINT": 0.049800000000000004,
+        "REALGDPFORECAST": 0.040075522788375804,
+        "STINT": 0.03115,
+        "country": "Sweden",
+        "year": "1999-01-01T00:00:00"
+      },
+      {
+        "CPI": 0.008991438000000001,
+        "HHDI": 0.10738271391579457,
+        "HUR": 0.055999999999999994,
+        "LTINT": 0.053675,
+        "REALGDPFORECAST": 0.049123448842375,
+        "STINT": 0.03954167,
+        "country": "Sweden",
+        "year": "2000-01-01T00:00:00"
+      },
+      {
+        "CPI": 0.02405958,
+        "HHDI": 0.057580323744734985,
+        "HUR": 0.05825,
+        "LTINT": 0.051075,
+        "REALGDPFORECAST": 0.0158436789936444,
+        "STINT": 0.040327270000000005,
+        "country": "Sweden",
+        "year": "2001-01-01T00:00:00"
+      },
+      {
+        "CPI": 0.021584819999999998,
+        "HHDI": 0.07570414466020092,
+        "HUR": 0.059500000000000004,
+        "LTINT": 0.053033330000000004,
+        "REALGDPFORECAST": 0.0221676473737985,
+        "STINT": 0.040658339999999994,
+        "country": "Sweden",
+        "year": "2002-01-01T00:00:00"
+      },
+      {
+        "CPI": 0.019256549999999997,
+        "HHDI": -0.001957681372199427,
+        "HUR": 0.06566667,
+        "LTINT": 0.04638333,
+        "REALGDPFORECAST": 0.0243981516483134,
+        "STINT": 0.030266670000000002,
+        "country": "Sweden",
+        "year": "2003-01-01T00:00:00"
+      },
+      {
+        "CPI": 0.003736598,
+        "HHDI": 0.03216686738672436,
+        "HUR": 0.07375,
+        "LTINT": 0.04425,
+        "REALGDPFORECAST": 0.0382843667999637,
+        "STINT": 0.02114167,
+        "country": "Sweden",
+        "year": "2004-01-01T00:00:00"
+      },
+      {
+        "CPI": 0.004531709,
+        "HHDI": 0.013491125866170517,
+        "HUR": 0.07775,
+        "LTINT": 0.033825,
+        "REALGDPFORECAST": 0.0285276842890482,
+        "STINT": 0.01716667,
+        "country": "Sweden",
+        "year": "2005-01-01T00:00:00"
+      },
+      {
+        "CPI": 0.01360215,
+        "HHDI": 0.07790736029923284,
+        "HUR": 0.07233333,
+        "LTINT": 0.03704167,
+        "REALGDPFORECAST": 0.0489459681011789,
+        "STINT": 0.023316669999999998,
+        "country": "Sweden",
+        "year": "2006-01-01T00:00:00"
+      },
+      {
+        "CPI": 0.02212169,
+        "HHDI": 0.0820490178776061,
+        "HUR": 0.06291667000000001,
+        "LTINT": 0.041675000000000004,
+        "REALGDPFORECAST": 0.035649343454819904,
+        "STINT": 0.035525,
+        "country": "Sweden",
+        "year": "2007-01-01T00:00:00"
+      },
+      {
+        "CPI": 0.034370490000000004,
+        "HHDI": 0.0606564383221071,
+        "HUR": 0.0635,
+        "LTINT": 0.038875,
+        "REALGDPFORECAST": -0.0060793858426436195,
+        "STINT": 0.03905,
+        "country": "Sweden",
+        "year": "2008-01-01T00:00:00"
+      },
+      {
+        "CPI": -0.004944606,
+        "HHDI": -0.0015052545619209656,
+        "HUR": 0.08483334,
+        "LTINT": 0.0325,
+        "REALGDPFORECAST": -0.042373704139203196,
+        "STINT": 0.003983333,
+        "country": "Sweden",
+        "year": "2009-01-01T00:00:00"
+      },
+      {
+        "CPI": 0.01157988,
+        "HHDI": 0.01970694657223193,
+        "HUR": 0.08758333,
+        "LTINT": 0.02893333,
+        "REALGDPFORECAST": 0.056628854017640604,
+        "STINT": 0.005041667,
+        "country": "Sweden",
+        "year": "2010-01-01T00:00:00"
+      },
+      {
+        "CPI": 0.02961151,
+        "HHDI": 0.0409610724881142,
+        "HUR": 0.07933333000000001,
+        "LTINT": 0.02605,
+        "REALGDPFORECAST": 0.0325304259034194,
+        "STINT": 0.016575,
+        "country": "Sweden",
+        "year": "2011-01-01T00:00:00"
+      },
+      {
+        "CPI": 0.008883775,
+        "HHDI": 0.05638729536593878,
+        "HUR": 0.08125,
+        "LTINT": 0.015925,
+        "REALGDPFORECAST": -0.0027329977527514597,
+        "STINT": 0.01253333,
+        "country": "Sweden",
+        "year": "2012-01-01T00:00:00"
+      },
+      {
+        "CPI": -0.0004429297,
+        "HHDI": 0.0025990033209208896,
+        "HUR": 0.08199999999999999,
+        "LTINT": 0.02120833,
+        "REALGDPFORECAST": 0.0115003381031296,
+        "STINT": 0.009258333,
+        "country": "Sweden",
+        "year": "2013-01-01T00:00:00"
+      },
+      {
+        "CPI": -0.0017963850000000002,
+        "HHDI": 0.015235751364536476,
+        "HUR": 0.081,
+        "LTINT": 0.0172,
+        "REALGDPFORECAST": 0.0275582303355262,
+        "STINT": 0.004208333,
+        "country": "Sweden",
+        "year": "2014-01-01T00:00:00"
+      },
+      {
+        "CPI": -0.0004678474,
+        "HHDI": 0.01986164181688377,
+        "HUR": 0.07591667,
+        "LTINT": 0.0071916670000000005,
+        "REALGDPFORECAST": 0.0423779370861184,
+        "STINT": -0.002891667,
+        "country": "Sweden",
+        "year": "2015-01-01T00:00:00"
+      },
+      {
+        "CPI": 0.009842693,
+        "HHDI": 0.03720620304285438,
+        "HUR": 0.07116667,
+        "LTINT": 0.005191666,
+        "REALGDPFORECAST": 0.0184680662194978,
+        "STINT": -0.00655,
+        "country": "Sweden",
+        "year": "2016-01-01T00:00:00"
+      },
+      {
+        "CPI": 0.01794499,
+        "HHDI": 0.01414779187570847,
+        "HUR": 0.06858333,
+        "LTINT": 0.00655,
+        "REALGDPFORECAST": 0.028174573469681802,
+        "STINT": -0.00695,
+        "country": "Sweden",
+        "year": "2017-01-01T00:00:00"
+      },
+      {
+        "CPI": 0.01953535,
+        "HHDI": 0.02391747457277571,
+        "HUR": 0.06508333000000001,
+        "LTINT": 0.006516666,
+        "REALGDPFORECAST": 0.0204079521879062,
+        "STINT": -0.0068583329999999994,
+        "country": "Sweden",
+        "year": "2018-01-01T00:00:00"
+      },
+      {
+        "CPI": 0.01784151,
+        "HHDI": -0.0014335727926603203,
+        "HUR": 0.0695,
+        "LTINT": 0.0004666667,
+        "REALGDPFORECAST": 0.0202778399956594,
+        "STINT": -0.004208333,
+        "country": "Sweden",
+        "year": "2019-01-01T00:00:00"
+      },
+      {
+        "CPI": 0.0049736730000000005,
+        "HHDI": 0.03610306765383853,
+        "HUR": 0.08533334,
+        "LTINT": -0.00038333329999999996,
+        "REALGDPFORECAST": -0.0293862180589139,
+        "STINT": -0.00135,
+        "country": "Sweden",
+        "year": "2020-01-01T00:00:00"
+      },
+      {
+        "CPI": 0.021631969999999997,
+        "HHDI": null,
+        "HUR": 0.08800000000000001,
+        "LTINT": 0.002683333,
+        "REALGDPFORECAST": 0.043242445211716,
+        "STINT": -0.001941667,
+        "country": "Sweden",
+        "year": "2021-01-01T00:00:00"
+      }
+    ]
+  },
+  "vconcat": [
+    {
+      "height": 200,
+      "layer": [
+        {
+          "encoding": {
+            "color": {
+              "field": "country",
+              "legend": {
+                "title": "Country"
+              },
+              "sort": [
+                "Finland",
+                "Sweden",
+                "Norway"
+              ],
+              "type": "nominal"
+            },
+            "x": {
+              "axis": {
+                "grid": true,
+                "title": null
+              },
+              "field": "year",
+              "timeUnit": "year",
+              "type": "temporal"
+            },
+            "y": {
+              "axis": {
+                "format": ".1%",
+                "title": null
+              },
+              "field": "REALGDPFORECAST",
+              "type": "quantitative"
+            }
+          },
+          "mark": "line"
+        },
+        {
+          "encoding": {
+            "opacity": {
+              "condition": {
+                "selection": "selector001",
+                "value": 1
+              },
+              "value": 0
+            },
+            "tooltip": [
+              {
+                "field": "Indicator",
+                "type": "nominal"
+              },
+              {
+                "field": "year",
+                "timeUnit": "year",
+                "title": "Year",
+                "type": "temporal"
+              },
+              {
+                "field": "Finland",
+                "format": ".1%",
+                "type": "quantitative"
+              },
+              {
+                "field": "Sweden",
+                "format": ".1%",
+                "type": "quantitative"
+              },
+              {
+                "field": "Norway",
+                "format": ".1%",
+                "type": "quantitative"
+              }
+            ],
+            "x": {
+              "axis": {
+                "grid": true,
+                "title": null
+              },
+              "field": "year",
+              "timeUnit": "year",
+              "type": "temporal"
+            }
+          },
+          "mark": {
+            "color": "gray",
+            "type": "rule"
+          },
+          "selection": {
+            "selector001": {
+              "clear": "mouseout",
+              "empty": "none",
+              "fields": [
+                "year"
+              ],
+              "nearest": true,
+              "on": "mouseover",
+              "type": "single"
+            }
+          },
+          "transform": [
+            {
+              "groupby": [
+                "year"
+              ],
+              "pivot": "country",
+              "value": "REALGDPFORECAST"
+            },
+            {
+              "as": "Indicator",
+              "calculate": "'Real gross domestic product growth rate (%)'"
+            }
+          ]
+        }
+      ],
+      "title": "Real gross domestic product growth rate (%)",
+      "width": "container"
+    },
+    {
+      "height": 200,
+      "layer": [
+        {
+          "encoding": {
+            "color": {
+              "field": "country",
+              "legend": {
+                "title": "Country"
+              },
+              "sort": [
+                "Finland",
+                "Sweden",
+                "Norway"
+              ],
+              "type": "nominal"
+            },
+            "x": {
+              "axis": {
+                "grid": true,
+                "title": null
+              },
+              "field": "year",
+              "timeUnit": "year",
+              "type": "temporal"
+            },
+            "y": {
+              "axis": {
+                "format": ".1%",
+                "title": null
+              },
+              "field": "HHDI",
+              "type": "quantitative"
+            }
+          },
+          "mark": "line"
+        },
+        {
+          "encoding": {
+            "opacity": {
+              "condition": {
+                "selection": "selector001",
+                "value": 1
+              },
+              "value": 0
+            },
+            "tooltip": [
+              {
+                "field": "Indicator",
+                "type": "nominal"
+              },
+              {
+                "field": "year",
+                "timeUnit": "year",
+                "title": "Year",
+                "type": "temporal"
+              },
+              {
+                "field": "Finland",
+                "format": ".1%",
+                "type": "quantitative"
+              },
+              {
+                "field": "Sweden",
+                "format": ".1%",
+                "type": "quantitative"
+              },
+              {
+                "field": "Norway",
+                "format": ".1%",
+                "type": "quantitative"
+              }
+            ],
+            "x": {
+              "axis": {
+                "grid": true,
+                "title": null
+              },
+              "field": "year",
+              "timeUnit": "year",
+              "type": "temporal"
+            }
+          },
+          "mark": {
+            "color": "gray",
+            "type": "rule"
+          },
+          "selection": {
+            "selector001": {
+              "clear": "mouseout",
+              "empty": "none",
+              "fields": [
+                "year"
+              ],
+              "nearest": true,
+              "on": "mouseover",
+              "type": "single"
+            }
+          },
+          "transform": [
+            {
+              "groupby": [
+                "year"
+              ],
+              "pivot": "country",
+              "value": "HHDI"
+            },
+            {
+              "as": "Indicator",
+              "calculate": "'Household disposable income US$ per capita yearly change (%)'"
+            }
+          ]
+        }
+      ],
+      "title": "Household disposable income US$ per capita yearly change (%)",
+      "width": "container"
+    },
+    {
+      "height": 200,
+      "layer": [
+        {
+          "encoding": {
+            "color": {
+              "field": "country",
+              "legend": {
+                "title": "Country"
+              },
+              "sort": [
+                "Finland",
+                "Sweden",
+                "Norway"
+              ],
+              "type": "nominal"
+            },
+            "x": {
+              "axis": {
+                "grid": true,
+                "title": null
+              },
+              "field": "year",
+              "timeUnit": "year",
+              "type": "temporal"
+            },
+            "y": {
+              "axis": {
+                "format": ".1%",
+                "title": null
+              },
+              "field": "HUR",
+              "type": "quantitative"
+            }
+          },
+          "mark": "line"
+        },
+        {
+          "encoding": {
+            "opacity": {
+              "condition": {
+                "selection": "selector001",
+                "value": 1
+              },
+              "value": 0
+            },
+            "tooltip": [
+              {
+                "field": "Indicator",
+                "type": "nominal"
+              },
+              {
+                "field": "year",
+                "timeUnit": "year",
+                "title": "Year",
+                "type": "temporal"
+              },
+              {
+                "field": "Finland",
+                "format": ".1%",
+                "type": "quantitative"
+              },
+              {
+                "field": "Sweden",
+                "format": ".1%",
+                "type": "quantitative"
+              },
+              {
+                "field": "Norway",
+                "format": ".1%",
+                "type": "quantitative"
+              }
+            ],
+            "x": {
+              "axis": {
+                "grid": true,
+                "title": null
+              },
+              "field": "year",
+              "timeUnit": "year",
+              "type": "temporal"
+            }
+          },
+          "mark": {
+            "color": "gray",
+            "type": "rule"
+          },
+          "selection": {
+            "selector001": {
+              "clear": "mouseout",
+              "empty": "none",
+              "fields": [
+                "year"
+              ],
+              "nearest": true,
+              "on": "mouseover",
+              "type": "single"
+            }
+          },
+          "transform": [
+            {
+              "groupby": [
+                "year"
+              ],
+              "pivot": "country",
+              "value": "HUR"
+            },
+            {
+              "as": "Indicator",
+              "calculate": "'Unemployment rate (% of labour force)'"
+            }
+          ]
+        }
+      ],
+      "title": "Unemployment rate (% of labour force)",
+      "width": "container"
+    },
+    {
+      "height": 200,
+      "layer": [
+        {
+          "encoding": {
+            "color": {
+              "field": "country",
+              "legend": {
+                "title": "Country"
+              },
+              "sort": [
+                "Finland",
+                "Sweden",
+                "Norway"
+              ],
+              "type": "nominal"
+            },
+            "x": {
+              "axis": {
+                "grid": true,
+                "title": null
+              },
+              "field": "year",
+              "timeUnit": "year",
+              "type": "temporal"
+            },
+            "y": {
+              "axis": {
+                "format": ".1%",
+                "title": null
+              },
+              "field": "CPI",
+              "type": "quantitative"
+            }
+          },
+          "mark": "line"
+        },
+        {
+          "encoding": {
+            "opacity": {
+              "condition": {
+                "selection": "selector001",
+                "value": 1
+              },
+              "value": 0
+            },
+            "tooltip": [
+              {
+                "field": "Indicator",
+                "type": "nominal"
+              },
+              {
+                "field": "year",
+                "timeUnit": "year",
+                "title": "Year",
+                "type": "temporal"
+              },
+              {
+                "field": "Finland",
+                "format": ".1%",
+                "type": "quantitative"
+              },
+              {
+                "field": "Sweden",
+                "format": ".1%",
+                "type": "quantitative"
+              },
+              {
+                "field": "Norway",
+                "format": ".1%",
+                "type": "quantitative"
+              }
+            ],
+            "x": {
+              "axis": {
+                "grid": true,
+                "title": null
+              },
+              "field": "year",
+              "timeUnit": "year",
+              "type": "temporal"
+            }
+          },
+          "mark": {
+            "color": "gray",
+            "type": "rule"
+          },
+          "selection": {
+            "selector001": {
+              "clear": "mouseout",
+              "empty": "none",
+              "fields": [
+                "year"
+              ],
+              "nearest": true,
+              "on": "mouseover",
+              "type": "single"
+            }
+          },
+          "transform": [
+            {
+              "groupby": [
+                "year"
+              ],
+              "pivot": "country",
+              "value": "CPI"
+            },
+            {
+              "as": "Indicator",
+              "calculate": "'Inflation growth rate (%)'"
+            }
+          ]
+        }
+      ],
+      "title": "Inflation growth rate (%)",
+      "width": "container"
+    },
+    {
+      "height": 200,
+      "layer": [
+        {
+          "encoding": {
+            "color": {
+              "field": "country",
+              "legend": {
+                "title": "Country"
+              },
+              "sort": [
+                "Finland",
+                "Sweden",
+                "Norway"
+              ],
+              "type": "nominal"
+            },
+            "x": {
+              "axis": {
+                "grid": true,
+                "title": null
+              },
+              "field": "year",
+              "timeUnit": "year",
+              "type": "temporal"
+            },
+            "y": {
+              "axis": {
+                "format": ".1%",
+                "title": null
+              },
+              "field": "LTINT",
+              "type": "quantitative"
+            }
+          },
+          "mark": "line"
+        },
+        {
+          "encoding": {
+            "opacity": {
+              "condition": {
+                "selection": "selector001",
+                "value": 1
+              },
+              "value": 0
+            },
+            "tooltip": [
+              {
+                "field": "Indicator",
+                "type": "nominal"
+              },
+              {
+                "field": "year",
+                "timeUnit": "year",
+                "title": "Year",
+                "type": "temporal"
+              },
+              {
+                "field": "Finland",
+                "format": ".1%",
+                "type": "quantitative"
+              },
+              {
+                "field": "Sweden",
+                "format": ".1%",
+                "type": "quantitative"
+              },
+              {
+                "field": "Norway",
+                "format": ".1%",
+                "type": "quantitative"
+              }
+            ],
+            "x": {
+              "axis": {
+                "grid": true,
+                "title": null
+              },
+              "field": "year",
+              "timeUnit": "year",
+              "type": "temporal"
+            }
+          },
+          "mark": {
+            "color": "gray",
+            "type": "rule"
+          },
+          "selection": {
+            "selector001": {
+              "clear": "mouseout",
+              "empty": "none",
+              "fields": [
+                "year"
+              ],
+              "nearest": true,
+              "on": "mouseover",
+              "type": "single"
+            }
+          },
+          "transform": [
+            {
+              "groupby": [
+                "year"
+              ],
+              "pivot": "country",
+              "value": "LTINT"
+            },
+            {
+              "as": "Indicator",
+              "calculate": "'Long-term interest rate (%)'"
+            }
+          ]
+        }
+      ],
+      "title": "Long-term interest rate (%)",
+      "width": "container"
+    },
+    {
+      "height": 200,
+      "layer": [
+        {
+          "encoding": {
+            "color": {
+              "field": "country",
+              "legend": {
+                "title": "Country"
+              },
+              "sort": [
+                "Finland",
+                "Sweden",
+                "Norway"
+              ],
+              "type": "nominal"
+            },
+            "x": {
+              "axis": {
+                "grid": true,
+                "title": null
+              },
+              "field": "year",
+              "timeUnit": "year",
+              "type": "temporal"
+            },
+            "y": {
+              "axis": {
+                "format": ".1%",
+                "title": null
+              },
+              "field": "STINT",
+              "type": "quantitative"
+            }
+          },
+          "mark": "line"
+        },
+        {
+          "encoding": {
+            "opacity": {
+              "condition": {
+                "selection": "selector001",
+                "value": 1
+              },
+              "value": 0
+            },
+            "tooltip": [
+              {
+                "field": "Indicator",
+                "type": "nominal"
+              },
+              {
+                "field": "year",
+                "timeUnit": "year",
+                "title": "Year",
+                "type": "temporal"
+              },
+              {
+                "field": "Finland",
+                "format": ".1%",
+                "type": "quantitative"
+              },
+              {
+                "field": "Sweden",
+                "format": ".1%",
+                "type": "quantitative"
+              },
+              {
+                "field": "Norway",
+                "format": ".1%",
+                "type": "quantitative"
+              }
+            ],
+            "x": {
+              "axis": {
+                "grid": true,
+                "title": null
+              },
+              "field": "year",
+              "timeUnit": "year",
+              "type": "temporal"
+            }
+          },
+          "mark": {
+            "color": "gray",
+            "type": "rule"
+          },
+          "selection": {
+            "selector001": {
+              "clear": "mouseout",
+              "empty": "none",
+              "fields": [
+                "year"
+              ],
+              "nearest": true,
+              "on": "mouseover",
+              "type": "single"
+            }
+          },
+          "transform": [
+            {
+              "groupby": [
+                "year"
+              ],
+              "pivot": "country",
+              "value": "STINT"
+            },
+            {
+              "as": "Indicator",
+              "calculate": "'Short-term interest rate (%)'"
+            }
+          ]
+        }
+      ],
+      "title": "Short-term interest rate (%)",
+      "width": "container"
+    }
+  ]
+};
+        const options = {"renderer": "canvas", "actions": false};
+        buildChart(spec, options);
+      </script>
+      <div id='custom-tooltip-element'></div>
+
+
+
+  </body>
+
+</html>

@@ -1,0 +1,560 @@
+<!DOCTYPE HTML>
+<html lang="en">
+
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Modelling a dynamic economy
+</title>
+
+      <script src="https://cdn.jsdelivr.net/npm/vega@5" crossorigin="anonymous">
+      </script>
+      <script src="https://cdn.jsdelivr.net/npm/vega-lite@4" crossorigin="anonymous">
+      </script>
+      <script src="https://cdn.jsdelivr.net/npm/vega-embed@6" crossorigin="anonymous">
+      </script>
+
+
+
+    <style>
+body {
+  font-family: Georgia, serif;
+  padding: 1rem;
+}
+
+a {
+  text-decoration: none;
+}
+
+a:hover {
+  text-decoration: underline;
+}
+
+#vega-container {
+  max-width: 70em;
+  width: 100%;
+}
+
+form.vega-bindings .vega-bind label {
+  display: grid;
+  grid-template-columns: 6em 14em 6em;
+}
+
+form.vega-bindings .vega-bind label span {
+  margin-left: 0.5em;
+}
+
+dl {
+  padding-top: 1rem;
+  padding-bottom: 1rem;
+  max-width: 800px;
+}
+
+dl,
+dd {
+  font-size: 0.9rem;
+}
+
+dt {
+  font-weight: bold;
+}
+
+dd {
+  margin-bottom: 1rem;
+}
+
+ul.data-source-url-list {
+  padding: 0;
+  list-style: none;
+}
+
+table {
+  border-collapse: collapse;
+  width: 100%;
+  max-width: 800px;
+}
+
+table td {
+  vertical-align: baseline;
+}
+
+table tr {
+  border-bottom: 1px solid lightgray;
+}
+
+table.tooltip {
+  border-collapse: initial;
+  width: initial;
+  max-width: initial;
+}
+
+table.tooltip tbody tr td {
+  vertical-align: middle;
+}
+
+#custom-tooltip-element.visible {
+  visibility: visible;
+}
+
+#custom-tooltip-element {
+  visibility: hidden;
+  padding: 0.5rem;
+  position: fixed;
+  z-index: 1000;
+  font-size: 0.8rem;
+  border-radius: 3px;
+  box-shadow: 2px 2px 4px rgba(0, 0, 0, 0.1);
+  background-color: rgba(255, 255, 255, 0.95);
+  border: 1px solid #d9d9d9;
+  color: black;
+}
+
+dd.module-description ul {
+  padding-left: 0px;
+  list-style-position: inside;
+}    </style>
+
+
+  </head>
+
+  <body>
+    <a href="index.html">go back</a>
+    <h1>Modelling a dynamic economy
+</h1>
+    <dl>
+      <dt>Updated at</dt>
+      <dd>29. May 2022</dd>
+        <dt>Description</dt>
+        <dd class="module-description">
+              Comparing different technologies for producing 100 metres of cloth at different coal prices and wages using isocost lines.
+        </dd>
+        <dt>Data source</dt>
+        <dd>core-econ.org: Five technologies for producing 100 metres of cloth compared
+</dd>
+        <dt>Data downloaded from</dt>
+        <dd>
+          <a href="https://core-econ.org/the-economy/book/text/02.html#figure-2-3a">Figure 2.3 Different technologies for producing 100 metres of cloth.</a>
+        </dd>
+        <dt>Book chapter</dt>
+        <dd><a href="https://core-econ.org/the-economy/book/text/02.html#25-modelling-a-dynamic-economy-innovation-and-profit
+">2.5 Modelling a dynamic economy: Innovation and profit
+</a></dd>
+    </dl>
+
+
+      <div id="vega-container"></div>
+      <script type="text/javascript">
+function renderTooltip(event, value, config) {
+  const tooltipContainer = document.getElementById("custom-tooltip-element");
+  tooltipContainer.classList.add("visible");
+  if (!value) {
+    tooltipContainer.classList.remove("visible");
+    return;
+  }
+  tooltipContainer.setAttribute(
+    "style",
+    `top: ${event.clientY + 15}px; left: ${event.clientX + 15}px`
+  );
+  const colorScheme = vega.scheme(findScheme(spec));
+  let { datatype, title, ...values } = value;
+  values = Array.from(Object.keys(values), (key, i) => ({
+    key: key,
+    val: values[key],
+    color: colorScheme[i],
+  }));
+  values.sort((a, b) => parseFloat(b.val) - parseFloat(a.val));
+  const fmt = getFormatter(config.formatter[datatype]);
+  tooltipContainer.innerHTML = sortedTable(title, values, fmt).outerHTML;
+}
+
+function getFormatter({ name, digits }) {
+  const currency = (c) =>
+    Intl.NumberFormat("en-US", {
+      maximumSignificantDigits: digits,
+      style: "currency",
+      currency: c,
+    });
+  const unit = (u) =>
+    Intl.NumberFormat("en-US", { maximumSignificantDigits: digits, style: "unit", unit: u });
+  switch (name) {
+    case "hour":
+      return unit("hour");
+    case "USD":
+    default:
+      return currency("USD");
+  }
+}
+
+function svgCircle(color) {
+  return [
+    `<svg style="display: table-cell; height: 1em; width: 1em; fill: ${color};" viewBox="0 0 2 2" xmlns="http://www.w3.org/2000/svg">`,
+    `<circle cx="1.1" cy="1.1" r="0.8"/>`,
+    `</svg>`,
+  ].join("\n");
+}
+
+const element = (tag) => document.createElement(tag);
+
+function findScheme(spec) {
+  for (const layer of spec.hconcat || spec.vconcat || spec.layer) {
+    const scheme =
+      layer &&
+      layer.encoding &&
+      layer.encoding.color &&
+      layer.encoding.color.scale &&
+      layer.encoding.color.scale.scheme;
+    if (scheme) {
+      return scheme;
+    }
+  }
+  return "tableau10";
+}
+
+function sortedTable(title, values, fmt) {
+  const container = element("div");
+  const header = element("h4");
+  header.setAttribute("style", "margin: 0 auto 0.5em;");
+  header.innerText = title;
+  container.appendChild(header);
+  const tbody = element("tbody");
+  for (let row of values) {
+    const tr = element("tr");
+    tr.innerHTML = [
+      `<td>${svgCircle(row.color)}</td>`,
+      `<td>${row.key}</td>`,
+      `<td>${fmt.format(row.val)}</td>`,
+    ].join("\n");
+    tbody.appendChild(tr);
+  }
+  const table = element("table");
+  table.classList.add("tooltip");
+  table.appendChild(tbody);
+  container.appendChild(table);
+  return container;
+}
+
+let vegaView;
+
+function buildChart(spec, options) {
+  vegaEmbed("#vega-container", spec, options)
+    .then((result) => {
+      vegaView = result.view;
+      const meta = spec.usermeta;
+      if (!meta) {
+        return;
+      }
+      if (meta.inputsOnTop) {
+        const bindings = document.querySelector("#vega-container.vega-embed form.vega-bindings");
+        const canvas = document.querySelector("#vega-container.vega-embed canvas");
+        canvas.parentNode.insertBefore(bindings, canvas);
+      }
+      if (meta.customTooltip) {
+        result.view.tooltip((handler, event, item, value) =>
+          renderTooltip(event, value, meta.customTooltip)
+        );
+      }
+      return result.view.runAsync();
+    })
+    .catch(console.error);
+}        const spec = {
+  "$schema": "https://vega.github.io/schema/vega-lite/v4.17.0.json",
+  "config": {
+    "axis": {
+      "labelFont": "Georgia",
+      "labelFontSize": 14,
+      "titleFont": "Georgia",
+      "titleFontSize": 16
+    },
+    "header": {
+      "labelFont": "Georgia",
+      "labelFontSize": 14,
+      "titleFont": "Georgia",
+      "titleFontSize": 16
+    },
+    "legend": {
+      "labelFont": "Georgia",
+      "labelFontSize": 14,
+      "titleFont": "Georgia",
+      "titleFontSize": 16
+    },
+    "title": {
+      "font": "Georgia",
+      "fontSize": 16
+    },
+    "view": {
+      "continuousHeight": 300,
+      "continuousWidth": 400
+    }
+  },
+  "datasets": {
+    "data-161dbcc92c4098b208fd9caab9c94e0b": [
+      {
+        "coal_required": 6,
+        "tech_name": "A",
+        "workers_required": 1
+      },
+      {
+        "coal_required": 2,
+        "tech_name": "B",
+        "workers_required": 4
+      },
+      {
+        "coal_required": 7,
+        "tech_name": "C",
+        "workers_required": 3
+      },
+      {
+        "coal_required": 5,
+        "tech_name": "D",
+        "workers_required": 5
+      },
+      {
+        "coal_required": 1,
+        "tech_name": "E",
+        "workers_required": 10
+      }
+    ],
+    "data-44943d5cefeb1f00718890ad2f5e995f": [
+      {
+        "coal_required": 6,
+        "n": 0,
+        "tech_name": "A",
+        "workers_required": 1
+      },
+      {
+        "coal_required": 6,
+        "n": 1,
+        "tech_name": "A",
+        "workers_required": 1
+      },
+      {
+        "coal_required": 2,
+        "n": 0,
+        "tech_name": "B",
+        "workers_required": 4
+      },
+      {
+        "coal_required": 2,
+        "n": 1,
+        "tech_name": "B",
+        "workers_required": 4
+      },
+      {
+        "coal_required": 7,
+        "n": 0,
+        "tech_name": "C",
+        "workers_required": 3
+      },
+      {
+        "coal_required": 7,
+        "n": 1,
+        "tech_name": "C",
+        "workers_required": 3
+      },
+      {
+        "coal_required": 5,
+        "n": 0,
+        "tech_name": "D",
+        "workers_required": 5
+      },
+      {
+        "coal_required": 5,
+        "n": 1,
+        "tech_name": "D",
+        "workers_required": 5
+      },
+      {
+        "coal_required": 1,
+        "n": 0,
+        "tech_name": "E",
+        "workers_required": 10
+      },
+      {
+        "coal_required": 1,
+        "n": 1,
+        "tech_name": "E",
+        "workers_required": 10
+      }
+    ]
+  },
+  "height": 600,
+  "layer": [
+    {
+      "data": {
+        "name": "data-44943d5cefeb1f00718890ad2f5e995f"
+      },
+      "encoding": {
+        "color": {
+          "field": "tech_name",
+          "legend": {
+            "title": "Technology"
+          },
+          "type": "nominal"
+        },
+        "x": {
+          "axis": {
+            "title": "Number of workers"
+          },
+          "field": "x_workers",
+          "scale": {
+            "domain": [
+              0,
+              20
+            ]
+          },
+          "type": "quantitative"
+        },
+        "y": {
+          "axis": {
+            "title": "Tonnes of coal"
+          },
+          "field": "y_coal",
+          "scale": {
+            "domain": [
+              0,
+              20
+            ]
+          },
+          "type": "quantitative"
+        }
+      },
+      "mark": {
+        "clip": true,
+        "type": "line"
+      },
+      "selection": {
+        "selector001": {
+          "bind": {
+            "input": "range",
+            "max": 40,
+            "min": 5,
+            "name": "Wages:",
+            "step": 1
+          },
+          "fields": [
+            "wage"
+          ],
+          "init": {
+            "wage": 10
+          },
+          "type": "single"
+        },
+        "selector002": {
+          "bind": {
+            "input": "range",
+            "max": 40,
+            "min": 5,
+            "name": "Coal cost:",
+            "step": 1
+          },
+          "fields": [
+            "coal_cost"
+          ],
+          "init": {
+            "coal_cost": 20
+          },
+          "type": "single"
+        }
+      },
+      "transform": [
+        {
+          "as": "y_coal",
+          "calculate": "((datum.n * ((selector001.wage * datum.workers_required) + (selector002.coal_cost * datum.coal_required))) / selector002.coal_cost)"
+        },
+        {
+          "as": "x_workers",
+          "calculate": "(((1 - datum.n) * ((selector001.wage * datum.workers_required) + (selector002.coal_cost * datum.coal_required))) / selector001.wage)"
+        }
+      ]
+    },
+    {
+      "data": {
+        "name": "data-161dbcc92c4098b208fd9caab9c94e0b"
+      },
+      "encoding": {
+        "color": {
+          "field": "tech_name",
+          "legend": null,
+          "type": "nominal"
+        },
+        "size": {
+          "value": 60
+        },
+        "tooltip": [
+          {
+            "field": "tech_name",
+            "title": "Technology",
+            "type": "nominal"
+          },
+          {
+            "field": "workers_required",
+            "title": "Workers required",
+            "type": "quantitative"
+          },
+          {
+            "field": "coal_required",
+            "title": "Tonnes of coal required",
+            "type": "quantitative"
+          },
+          {
+            "field": "tech_cost",
+            "title": "Production cost",
+            "type": "quantitative"
+          }
+        ],
+        "x": {
+          "field": "workers_required",
+          "type": "quantitative"
+        },
+        "y": {
+          "field": "coal_required",
+          "type": "quantitative"
+        }
+      },
+      "mark": "point",
+      "transform": [
+        {
+          "as": "tech_cost",
+          "calculate": "((selector001.wage * datum.workers_required) + (selector002.coal_cost * datum.coal_required))"
+        }
+      ]
+    },
+    {
+      "data": {
+        "name": "data-161dbcc92c4098b208fd9caab9c94e0b"
+      },
+      "encoding": {
+        "text": {
+          "field": "tech_name",
+          "type": "nominal"
+        },
+        "x": {
+          "field": "workers_required",
+          "type": "quantitative"
+        },
+        "y": {
+          "field": "coal_required",
+          "type": "quantitative"
+        }
+      },
+      "mark": {
+        "align": "center",
+        "baseline": "bottom",
+        "dy": -5,
+        "type": "text"
+      }
+    }
+  ],
+  "title": "Total cost of producing 100 metres of cloth",
+  "width": "container"
+};
+        const options = {"renderer": "canvas", "actions": false};
+        buildChart(spec, options);
+      </script>
+      <div id='custom-tooltip-element'></div>
+
+
+
+  </body>
+
+</html>

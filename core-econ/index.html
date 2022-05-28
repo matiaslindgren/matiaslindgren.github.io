@@ -1,0 +1,167 @@
+<!DOCTYPE HTML>
+<html lang="en">
+
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Economics visualizations</title>
+
+      <script src="https://cdn.jsdelivr.net/npm/vega@5" crossorigin="anonymous">
+      </script>
+      <script src="https://cdn.jsdelivr.net/npm/vega-lite@4" crossorigin="anonymous">
+      </script>
+      <script src="https://cdn.jsdelivr.net/npm/vega-embed@6" crossorigin="anonymous">
+      </script>
+
+
+
+    <style>
+body {
+  font-family: Georgia, serif;
+  padding: 1rem;
+}
+
+a {
+  text-decoration: none;
+}
+
+a:hover {
+  text-decoration: underline;
+}
+
+#vega-container {
+  max-width: 70em;
+  width: 100%;
+}
+
+form.vega-bindings .vega-bind label {
+  display: grid;
+  grid-template-columns: 6em 14em 6em;
+}
+
+form.vega-bindings .vega-bind label span {
+  margin-left: 0.5em;
+}
+
+dl {
+  padding-top: 1rem;
+  padding-bottom: 1rem;
+  max-width: 800px;
+}
+
+dl,
+dd {
+  font-size: 0.9rem;
+}
+
+dt {
+  font-weight: bold;
+}
+
+dd {
+  margin-bottom: 1rem;
+}
+
+ul.data-source-url-list {
+  padding: 0;
+  list-style: none;
+}
+
+table {
+  border-collapse: collapse;
+  width: 100%;
+  max-width: 800px;
+}
+
+table td {
+  vertical-align: baseline;
+}
+
+table tr {
+  border-bottom: 1px solid lightgray;
+}
+
+table.tooltip {
+  border-collapse: initial;
+  width: initial;
+  max-width: initial;
+}
+
+table.tooltip tbody tr td {
+  vertical-align: middle;
+}
+
+#custom-tooltip-element.visible {
+  visibility: visible;
+}
+
+#custom-tooltip-element {
+  visibility: hidden;
+  padding: 0.5rem;
+  position: fixed;
+  z-index: 1000;
+  font-size: 0.8rem;
+  border-radius: 3px;
+  box-shadow: 2px 2px 4px rgba(0, 0, 0, 0.1);
+  background-color: rgba(255, 255, 255, 0.95);
+  border: 1px solid #d9d9d9;
+  color: black;
+}
+
+dd.module-description ul {
+  padding-left: 0px;
+  list-style-position: inside;
+}    </style>
+
+
+  </head>
+
+  <body>
+    <a style='opacity:0;'>go back</a>
+    <h1>Economics visualizations</h1>
+    <dl>
+      <dt>Updated at</dt>
+      <dd>29. May 2022</dd>
+        <dt>Description</dt>
+        <dd class="module-description">
+              <ul>
+                <li>Trying to learn something about economics by reading <a href='https://core-econ.org/the-economy/'>The Core Team's The Economy</a> while creating visualizations with <a href='https://altair-viz.github.io/index.html'>Altair</a> and <a href='https://vega.github.io/vega-lite/'>Vega-Lite</a>.
+</li>
+                <li>Visualizations might work poorly on mobile devices since most interactions assume a mouse is used.</li>
+                <li>I don't know anything about economics so please assume all math is incorrect (the code should be OK though).</li>
+                <li>All code is on <a href='https://github.com/matiaslindgren/core-econ'>GitHub</a>.</li>
+              </ul>
+        </dd>
+    </dl>
+
+
+
+    <ol>
+        <li><a href="./inequality.html">Income inequality
+</a></li>
+        <li><a href="./growth.html">Growth since the 17th century
+</a></li>
+        <li><a href="./global_warming.html">Global warming
+</a></li>
+        <li><a href="./comparative_advantage.html">Comparative advantage
+</a></li>
+        <li><a href="./the_two_germanies.html">The two Germanies
+</a></li>
+        <li><a href="./tech_and_cost.html">Modelling a dynamic economy
+</a></li>
+        <li><a href="./malthus_escape.html">Escape from Malthus
+</a></li>
+        <li><a href="./production_function.html">Production function
+</a></li>
+        <li><a href="./working_hours.html">Working hours and wages
+</a></li>
+        <li><a href="./wealth_distribution.html">Measuring economic inequality
+</a></li>
+        <li><a href="./supply_and_demand.html">Supply and demand</a></li>
+        <li><a href="./indicators.html">Economic indicators</a></li>
+    </ol>
+
+
+  </body>
+
+</html>
